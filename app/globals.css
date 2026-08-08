@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ── Light mode (generated to match the dark palette) ─────── */
+    --background: 225 40% 97%;            /* soft lavender-white */
+    --foreground: 225 49% 12%;            /* deep navy ink */
+    --card: 0 0% 100%;                    /* #FFFFFF */
+    --card-foreground: 225 49% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 225 49% 12%;
+    --primary: 255 100% 62%;              /* #6C3BFF */
+    --primary-foreground: 0 0% 100%;      /* #FFFFFF */
+    --secondary: 257 100% 68%;            /* #8B5CFF */
+    --secondary-foreground: 225 49% 12%;
+    --muted: 225 30% 94%;
+    --muted-foreground: 225 15% 45%;
+    --accent: 43 100% 48%;                /* #F6B100 */
+    --accent-foreground: 225 49% 12%;
+    --destructive: 349 100% 65%;          /* #FF4D6D */
+    --destructive-foreground: 0 0% 100%;
+    --success: 166 63% 50%;               /* #31D0AA */
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;                /* amber */
+    --warning-foreground: 225 49% 12%;
+    --info: 217 91% 60%;                  /* blue */
+    --info-foreground: 0 0% 100%;
+    --border: 225 25% 88%;
+    --input: 225 25% 88%;
+    --ring: 255 100% 62%;                 /* primary */
+    --chart-1: 255 100% 62%;              /* primary */
+    --chart-2: 257 100% 68%;              /* secondary */
+    --chart-3: 43 100% 48%;               /* accent gold */
+    --chart-4: 166 63% 50%;               /* success */
+    --chart-5: 349 100% 65%;              /* danger */
+    --chart-6: 217 91% 60%;               /* info */
+    --radius: 0.625rem;
+    --sidebar: 0 0% 100%;                 /* #FFFFFF */
+    --sidebar-foreground: 225 49% 12%;
+    --sidebar-border: 225 25% 88%;
+  }
+
+  .dark {
+    /* ── Dark mode (your palette) ────────────────────────────── */
+    --background: 225 49% 8%;             /* #0B1020 */
+    --foreground: 0 0% 100%;              /* #FFFFFF */
+    --card: 225 40% 13%;                  /* lifted surface */
+    --card-foreground: 0 0% 100%;
+    --popover: 225 40% 13%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 255 100% 62%;              /* #6C3BFF */
+    --primary-foreground: 0 0% 100%;      /* #FFFFFF */
+    --secondary: 257 100% 68%;            /* #8B5CFF */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 225 35% 18%;
+    --muted-foreground: 225 20% 65%;
+    --accent: 43 100% 48%;                /* #F6B100 */
+    --accent-foreground: 225 49% 8%;      /* dark text on gold */
+    --destructive: 349 100% 65%;          /* #FF4D6D */
+    --destructive-foreground: 0 0% 100%;
+    --success: 166 63% 50%;               /* #31D0AA */
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;                /* amber */
+    --warning-foreground: 225 49% 8%;
+    --info: 217 91% 60%;                  /* blue */
+    --info-foreground: 0 0% 100%;
+    --border: 225 30% 22%;
+    --input: 225 30% 22%;
+    --ring: 255 100% 62%;                 /* primary */
+    --chart-1: 255 100% 62%;              /* primary */
+    --chart-2: 257 100% 68%;              /* secondary */
+    --chart-3: 43 100% 48%;               /* accent gold */
+    --chart-4: 166 63% 50%;               /* success */
+    --chart-5: 349 100% 65%;              /* danger */
+    --chart-6: 217 91% 60%;               /* info */
+    --sidebar: 225 45% 11%;              /* slightly lifted from bg */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-border: 225 30% 22%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.4) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.4) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+}

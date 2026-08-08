@@ -1,0 +1,324 @@
+'use client';
+
+import { useMemo, useState, type ReactNode } from 'react';
+import {
+  type ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type SortingState,
+  type ColumnFiltersState,
+  type RowSelectionState,
+} from '@tanstack/react-table';
+import {
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Download,
+  Search,
+  Trash2,
+} from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/shared/empty-state';
+import { exportToCsv, exportToExcel } from '@/lib/format';
+import { cn } from '@/lib/utils';
+
+interface DataTableProps<TData, TValue> {
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  isLoading?: boolean;
+  searchKey?: string;
+  searchPlaceholder?: string;
+  toolbar?: ReactNode;
+  onBulkDelete?: (rows: TData[]) => void;
+  exportFilename?: string;
+  pageSize?: number;
+  emptyTitle?: string;
+  emptyDescription?: string;
+}
+
+export function DataTable<TData, TValue>({
+  columns,
+  data,
+  isLoading = false,
+  searchKey,
+  searchPlaceholder = 'Search...',
+  toolbar,
+  onBulkDelete,
+  exportFilename = 'export',
+  pageSize = 10,
+  emptyTitle = 'No results found',
+  emptyDescription = 'Try adjusting your search or filters.',
+}: DataTableProps<TData, TValue>) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+
+  const tableColumns = useMemo(() => {
+    if (!onBulkDelete) return columns;
+    return [
+      {
+        id: 'select',
+        header: ({ table }) => (
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && 'indeterminate')
+            }
+            onCheckedChange={(value) =>
+              table.toggleAllPageRowsSelected(!!value)
+            }
+            aria-label="Select all rows"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+          />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+      },
+      ...columns,
+    ] as ColumnDef<TData, TValue>[];
+  }, [columns, onBulkDelete]);
+
+  const table = useReactTable({
+    data,
+    columns: tableColumns,
+    state: { sorting, columnFilters, rowSelection },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onRowSelectionChange: setRowSelection,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize } },
+  });
+
+  const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original);
+
+  const handleExportCsv = () => {
+    exportToCsv(exportFilename, data as unknown as Record<string, unknown>[]);
+  };
+
+  const handleExportExcel = () => {
+    exportToExcel(exportFilename, data as unknown as Record<string, unknown>[]);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="flex h-10 items-center gap-2">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-10 w-24" />
+        </div>
+        <div className="rounded-md border">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex border-b p-4">
+              <Skeleton className="h-4 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 items-center gap-2">
+          {searchKey && (
+            <div className="relative w-full max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder={searchPlaceholder}
+                value={
+                  (table.getColumn(searchKey)?.getFilterValue() as string) ?? ''
+                }
+                onChange={(e) =>
+                  table.getColumn(searchKey)?.setFilterValue(e.target.value)
+                }
+                className="pl-9"
+              />
+            </div>
+          )}
+          {toolbar}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportCsv}>
+            <Download className="mr-2 h-4 w-4" />
+            CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportExcel}>
+            <Download className="mr-2 h-4 w-4" />
+            Excel
+          </Button>
+        </div>
+      </div>
+
+      {selectedRows.length > 0 && onBulkDelete && (
+        <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 px-4 py-2">
+          <span className="text-sm font-medium text-destructive">
+            {selectedRows.length} row(s) selected
+          </span>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              onBulkDelete(selectedRows);
+              setRowSelection({});
+            }}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete selected
+          </Button>
+        </div>
+      )}
+
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id} className="bg-muted/50">
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} className="h-11">
+                    {header.isPlaceholder ? null : (
+                      <div className="flex items-center">
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                        {header.column.getCanSort() && (
+                          <button
+                            onClick={header.column.getToggleSortingHandler()}
+                            className="ml-1"
+                          >
+                            <ArrowUpDown className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && 'selected'}
+                  className={cn(
+                    'transition-colors',
+                    row.getIsSelected() && 'bg-primary/5'
+                  )}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={tableColumns.length}
+                  className="h-32 p-0"
+                >
+                  <EmptyState title={emptyTitle} description={emptyDescription} />
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <DataTablePagination table={table} />
+    </div>
+  );
+}
+
+interface PaginationProps<TData> {
+  table: ReturnType<typeof useReactTable<TData>>;
+}
+
+function DataTablePagination<TData>({ table }: PaginationProps<TData>) {
+  const { pageIndex, pageSize } = table.getState().pagination;
+  const totalRows = table.getFilteredRowModel().rows.length;
+  const startRow = pageIndex * pageSize + 1;
+  const endRow = Math.min((pageIndex + 1) * pageSize, totalRows);
+
+  return (
+    <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+      <p className="text-sm text-muted-foreground">
+        Showing {totalRows === 0 ? 0 : startRow}–{endRow} of {totalRows} results
+      </p>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => table.setPageIndex(0)}
+          disabled={!table.getCanPreviousPage()}
+          aria-label="First page"
+        >
+          <ChevronsLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => table.previousPage()}
+          disabled={!table.getCanPreviousPage()}
+          aria-label="Previous page"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-sm font-medium text-muted-foreground">
+          Page {pageIndex + 1} of {table.getPageCount() || 1}
+        </span>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => table.nextPage()}
+          disabled={!table.getCanNextPage()}
+          aria-label="Next page"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+          disabled={!table.getCanNextPage()}
+          aria-label="Last page"
+        >
+          <ChevronsRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
