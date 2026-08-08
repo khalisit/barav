@@ -14,6 +14,7 @@ import {
   FileBarChart,
   Settings,
   UserCircle,
+  Wallet,
 } from 'lucide-react';
 import type { Permission } from '@/features/auth/types';
 
@@ -37,6 +38,7 @@ export const navSections: NavSection[] = [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
       { label: 'Analytics', href: '/analytics', icon: BarChart3, permission: 'analytics.view' },
       { label: 'Reports', href: '/reports', icon: FileBarChart, permission: 'reports.view' },
+      { label: 'Revenue & Expenses', href: '/revenue', icon: Wallet, permission: 'analytics.view' },
     ],
   },
   {
