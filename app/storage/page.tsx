@@ -1,27 +1,85 @@
 'use client';
 
 import { useMemo } from 'react';
-import { HardDrive, FileImage, Mic, Video, Folder } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { HardDrive, FileImage, Video, Folder, Shapes } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { generateMedia } from '@/lib/mock-data';
-import { formatNumber } from '@/lib/format';
+import { api } from '@/lib/api-client';
+import { useLanguage } from '@/hooks/use-language';
+interface StorageStats {
+  success: boolean;
+  data: {
+    totalBytes: number;
+    totalFiles: number;
+    storageLimitBytes: number;
+    usagePercentage: number;
+    images: { bytes: number; files: number };
+    videos: { bytes: number; files: number };
+    other: { bytes: number; files: number };
+  };
+}
 
 export default function StoragePage() {
-  const media = useMemo(() => generateMedia(24), []);
-  const totalSize = media.reduce((sum, m) => sum + m.size, 0);
-  const totalGB = 50;
-  const usedGB = Math.round((totalSize / 1024 / 1024) * 10) / 10;
-  const usedPercent = Math.round((usedGB / totalGB) * 100);
+  const { language } = useLanguage();
+  const { data: statsResult, isLoading } = useQuery<StorageStats>({
+    queryKey: ['storage-stats'],
+    queryFn: () => api.get('/admin/storage/stats'),
+    refetchOnWindowFocus: true
+  });
 
-  const breakdown = [
-    { type: 'Images', icon: FileImage, size: Math.round(usedGB * 0.5 * 10) / 10, color: 'bg-primary', percent: 50 },
-    { type: 'Audio', icon: Mic, size: Math.round(usedGB * 0.3 * 10) / 10, color: 'bg-success', percent: 30 },
-    { type: 'Videos', icon: Video, size: Math.round(usedGB * 0.15 * 10) / 10, color: 'bg-info', percent: 15 },
-    { type: 'Other', icon: Folder, size: Math.round(usedGB * 0.05 * 10) / 10, color: 'bg-warning', percent: 5 },
-  ];
+  const stats = statsResult?.data;
+  
+  const totalSizeBytes = stats?.totalBytes || 0;
+  const totalLimitBytes = stats?.storageLimitBytes || (50 * 1024 * 1024 * 1024);
+  const usedPercent = stats?.usagePercentage ? Math.round(stats.usagePercentage) : 0;
+
+  // Format file size dynamically
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const imagesBytes = stats?.images.bytes || 0;
+  const videosBytes = stats?.videos.bytes || 0;
+  const otherBytes = stats?.other.bytes || 0;
+
+  const breakdown = useMemo(() => [
+    {
+      type: language === 'ku' ? 'وێنەکان' : 'Images',
+      icon: FileImage,
+      size: formatBytes(imagesBytes),
+      color: 'bg-primary',
+      percent: totalSizeBytes > 0 ? (imagesBytes / totalSizeBytes) * 100 : 0
+    },
+    {
+      type: language === 'ku' ? 'ڤیدیۆکان' : 'Videos',
+      icon: Video,
+      size: formatBytes(videosBytes),
+      color: 'bg-info',
+      percent: totalSizeBytes > 0 ? (videosBytes / totalSizeBytes) * 100 : 0
+    },
+    {
+      type: language === 'ku' ? 'هیتر' : 'Other',
+      icon: Folder,
+      size: formatBytes(otherBytes),
+      color: 'bg-muted-foreground',
+      percent: totalSizeBytes > 0 ? (otherBytes / totalSizeBytes) * 100 : 0
+    },
+  ], [language, imagesBytes, videosBytes, otherBytes, totalSizeBytes]);
+
+  if (isLoading) {
+    return (
+      <DashboardShell>
+        <PageHeader title="Storage" description={language === 'ku' ? 'بارکردنی کۆگا...' : 'Loading storage...'} />
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell>
@@ -34,7 +92,7 @@ export default function StoragePage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle className="text-base">Storage Overview</CardTitle>
+            <CardTitle className="text-base">{language === 'ku' ? 'کورتەی کۆگا' : 'Storage Overview'}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center">
             <motion.div
@@ -53,19 +111,23 @@ export default function StoragePage() {
               </svg>
               <div className="absolute text-center">
                 <p className="text-3xl font-bold">{usedPercent}%</p>
-                <p className="text-xs text-muted-foreground">used</p>
+                <p className="text-xs text-muted-foreground">{language === 'ku' ? 'بەکارهێنراو' : 'used'}</p>
               </div>
             </motion.div>
             <div className="mt-4 text-center">
-              <p className="text-sm font-medium">{usedGB} GB of {totalGB} GB</p>
-              <p className="text-xs text-muted-foreground">{totalGB - usedGB} GB available</p>
+              <p className="text-sm font-medium">
+                {formatBytes(totalSizeBytes)} {language === 'ku' ? 'لە کۆی ٥٠ گێگابایت' : 'of 50 GB'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {formatBytes(totalLimitBytes - totalSizeBytes)} {language === 'ku' ? 'بەردەستە' : 'available'}
+              </p>
             </div>
           </CardContent>
         </Card>
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Storage Breakdown</CardTitle>
+            <CardTitle className="text-base">{language === 'ku' ? 'وردەکاری کۆگا' : 'Storage Breakdown'}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {breakdown.map((item, i) => {
@@ -82,7 +144,7 @@ export default function StoragePage() {
                       <Icon className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-medium">{item.type}</span>
                     </div>
-                    <span className="text-sm text-muted-foreground">{item.size} GB</span>
+                    <span className="text-sm text-muted-foreground">{item.size}</span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                     <div className={`h-full rounded-full ${item.color}`} style={{ width: `${item.percent}%` }} />
@@ -94,26 +156,6 @@ export default function StoragePage() {
         </Card>
       </div>
 
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle className="text-base">Recent Files</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1">
-          {media.slice(0, 10).map((file, i) => (
-            <motion.div
-              key={file.id}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.02 }}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/50"
-            >
-              <HardDrive className="h-4 w-4 text-muted-foreground" />
-              <span className="flex-1 text-sm font-medium">{file.name}</span>
-              <span className="text-xs text-muted-foreground">{formatNumber(file.size)} KB</span>
-            </motion.div>
-          ))}
-        </CardContent>
-      </Card>
     </DashboardShell>
   );
 }

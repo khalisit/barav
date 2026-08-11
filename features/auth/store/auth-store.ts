@@ -2,8 +2,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { AuthUser, Permission, UserRole } from '../types';
-import { ROLE_PERMISSIONS } from '../types';
+import type { AuthUser } from '../types';
 import { setAccessToken } from '@/lib/api-client';
 
 interface AuthState {
@@ -16,8 +15,6 @@ interface AuthState {
   clearAuth: () => void;
   setLoading: (loading: boolean) => void;
   setHasHydrated: (hydrated: boolean) => void;
-  hasPermission: (permission: Permission) => boolean;
-  hasRole: (role: UserRole | UserRole[]) => boolean;
 }
 
 const noopStorage = {
@@ -52,21 +49,6 @@ export const useAuthStore = create<AuthState>()(
       },
       setLoading: (loading) => set({ isLoading: loading }),
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
-      hasPermission: (permission) => {
-        const user = get().user;
-        if (!user) return false;
-        if (user.role === 'super_admin') return true;
-        const rolePerms = ROLE_PERMISSIONS[user.role] ?? [];
-        return (
-          user.permissions.includes(permission) ||
-          rolePerms.includes(permission)
-        );
-      },
-      hasRole: (role) => {
-        const user = get().user;
-        if (!user) return false;
-        return Array.isArray(role) ? role.includes(user.role) : user.role === role;
-      },
     }),
     {
       name: 'barav-auth',

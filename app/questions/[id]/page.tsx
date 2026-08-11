@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,7 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { generateQuestions } from '@/lib/mock-data';
+import { api } from '@/lib/api-client';
+import type { Question } from '@/lib/types';
 import { toast } from 'sonner';
 
 const questionSchema = z.object({
@@ -37,20 +39,22 @@ type QuestionFormValues = z.infer<typeof questionSchema>;
 export default function QuestionEditorPage() {
   const params = useParams();
   const router = useRouter();
-  const allQuestions = useMemo(() => generateQuestions(20), []);
-  const existing = useMemo(
-    () => allQuestions.find((q) => q.id === params.id) ?? allQuestions[0],
-    [allQuestions, params.id]
-  );
+  const queryClient = useQueryClient();
 
-  const [options, setOptions] = useState(
-    existing.options.length > 0
-      ? existing.options
-      : [{ id: 'a', text: '', isCorrect: true }, { id: 'b', text: '', isCorrect: false }]
+  const isNew = params.id === 'new' || params.id === 'create';
+
+  const { data: questionResult, isLoading } = useQuery<{ data: Question }>({
+    queryKey: ['questions', params.id],
+    queryFn: () => api.get(`/questions/${params.id}`),
+    enabled: !isNew
+  });
+
+  const existing = questionResult?.data || questionResult || null;
+
+  const [options, setOptions] = useState<any[]>(
+    [{ id: 'a', text: '', isCorrect: true }, { id: 'b', text: '', isCorrect: false }]
   );
-  const [correctOption, setCorrectOption] = useState(
-    existing.options.find((o) => o.isCorrect)?.id ?? 'a'
-  );
+  const [correctOption, setCorrectOption] = useState('a');
 
   const {
     register,
@@ -58,15 +62,44 @@ export default function QuestionEditorPage() {
     watch,
     setValue,
     formState: { errors, isSubmitting },
+    reset,
   } = useForm<QuestionFormValues>({
     resolver: zodResolver(questionSchema),
     defaultValues: {
-      text: existing.text,
-      type: existing.type,
-      points: existing.points,
-      timer: existing.timer,
-      explanation: existing.explanation,
+      text: '',
+      type: 'multiple_choice',
+      points: 10,
+      timer: 30,
+      explanation: '',
     },
+  });
+
+  useEffect(() => {
+    if (existing) {
+      reset({
+        text: existing.text,
+        type: existing.type,
+        points: existing.points,
+        timer: existing.timer,
+        explanation: existing.explanation,
+      });
+      if (existing.options && existing.options.length > 0) {
+        setOptions(existing.options);
+        setCorrectOption(existing.options.find((o: any) => o.isCorrect)?.id ?? 'a');
+      }
+    }
+  }, [existing, reset]);
+
+  const updateMutation = useMutation({
+    mutationFn: (values: any) => {
+      if (isNew) return api.post('/questions', values);
+      return api.put(`/questions/${params.id}`, values);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['questions'] });
+      toast.success('Question saved');
+      router.push('/questions');
+    }
   });
 
   const type = watch('type');
@@ -82,9 +115,8 @@ export default function QuestionEditorPage() {
     setOptions((prev) => prev.filter((o) => o.id !== id));
   };
 
-  const onSubmit = (_values: QuestionFormValues) => {
-    toast.success('Question saved');
-    router.push('/questions');
+  const onSubmit = (values: QuestionFormValues) => {
+    updateMutation.mutate({ ...values, options });
   };
 
   return (
@@ -99,7 +131,7 @@ export default function QuestionEditorPage() {
         ]}
         actions={
           <Button variant="outline" onClick={() => router.back()}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+            <ArrowLeft className="me-2 h-4 w-4 rtl:rotate-180" /> Back
           </Button>
         }
       />
@@ -220,7 +252,7 @@ export default function QuestionEditorPage() {
                   ))}
                   {options.length < 6 && (
                     <Button type="button" variant="outline" size="sm" onClick={addOption}>
-                      <Plus className="mr-2 h-4 w-4" /> Add Option
+                      <Plus className="me-2 h-4 w-4" /> Add Option
                     </Button>
                   )}
                 </>
@@ -267,7 +299,7 @@ export default function QuestionEditorPage() {
             </CardContent>
           </Card>
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            <Save className="mr-2 h-4 w-4" /> Save Question
+            <Save className="me-2 h-4 w-4" /> Save Question
           </Button>
         </div>
       </form>

@@ -15,14 +15,13 @@ import {
   Settings,
   UserCircle,
   Wallet,
+  Star,
 } from 'lucide-react';
-import type { Permission } from '@/features/auth/types';
 
 export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
-  permission?: Permission;
   badge?: string;
 }
 
@@ -36,17 +35,18 @@ export const navSections: NavSection[] = [
     label: 'Overview',
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-      { label: 'Analytics', href: '/analytics', icon: BarChart3, permission: 'analytics.view' },
-      { label: 'Reports', href: '/reports', icon: FileBarChart, permission: 'reports.view' },
-      { label: 'Revenue & Expenses', href: '/revenue', icon: Wallet, permission: 'analytics.view' },
+      { label: 'Analytics', href: '/analytics', icon: BarChart3 },
+      { label: 'Reports', href: '/reports', icon: FileBarChart },
+      { label: 'Revenue & Expenses', href: '/revenue', icon: Wallet },
     ],
   },
   {
     label: 'Content',
     items: [
-      { label: 'Quizzes', href: '/quizzes', icon: HelpCircle, permission: 'quizzes.view' },
-      { label: 'Questions', href: '/questions', icon: ListOrdered, permission: 'questions.view' },
-      { label: 'Categories', href: '/categories', icon: FolderTree, permission: 'categories.manage' },
+      { label: 'Quizzes', href: '/quizzes', icon: HelpCircle },
+      { label: 'Questions', href: '/questions', icon: ListOrdered },
+      { label: 'Categories', href: '/categories', icon: FolderTree },
+      { label: 'Sponsors', href: '/sponsors', icon: Star },
     ],
   },
   {
@@ -58,17 +58,16 @@ export const navSections: NavSection[] = [
   {
     label: 'Users',
     items: [
-      { label: 'Users', href: '/users', icon: Users, permission: 'users.view' },
-      { label: 'Audit Logs', href: '/audit-logs', icon: ScrollText, permission: 'audit.view' },
+      { label: 'Users', href: '/users', icon: Users },
+      { label: 'Audit Logs', href: '/audit-logs', icon: ScrollText },
     ],
   },
   {
     label: 'System',
     items: [
-      { label: 'Media', href: '/media', icon: Image, permission: 'media.manage' },
-      { label: 'Storage', href: '/storage', icon: HardDrive, permission: 'media.manage' },
+      { label: 'Storage', href: '/storage', icon: HardDrive },
       { label: 'Notifications', href: '/notifications', icon: Bell },
-      { label: 'Settings', href: '/settings', icon: Settings, permission: 'settings.manage' },
+      { label: 'Settings', href: '/settings', icon: Settings },
       { label: 'Profile', href: '/profile', icon: UserCircle },
     ],
   },

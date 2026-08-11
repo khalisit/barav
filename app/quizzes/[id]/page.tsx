@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Pencil, Play, Archive, Send, Users, Clock, HelpCircle, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
@@ -13,18 +14,39 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { generateQuizzes, generateQuestions } from '@/lib/mock-data';
+import { api } from '@/lib/api-client';
+import type { Quiz, Question } from '@/lib/types';
 import { formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 
 export default function QuizDetailsPage() {
   const params = useParams();
-  const allQuizzes = useMemo(() => generateQuizzes(30), []);
-  const quiz = useMemo(
-    () => allQuizzes.find((q) => q.id === params.id) ?? allQuizzes[0],
-    [allQuizzes, params.id]
-  );
-  const questions = useMemo(() => generateQuestions(quiz.questionCount), [quiz.questionCount]);
+  const queryClient = useQueryClient();
+
+  const { data: quizResult, isLoading: isQuizLoading } = useQuery<{ data: Quiz }>({
+    queryKey: ['quizzes', params.id],
+    queryFn: () => api.get(`/quizzes/${params.id}`)
+  });
+
+  const { data: questionsResult, isLoading: isQuestionsLoading } = useQuery<{ data: Question[] }>({
+    queryKey: ['questions'],
+    queryFn: () => api.get('/questions')
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (status: string) => api.put(`/quizzes/${params.id}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quizzes'] });
+      toast.success('Quiz status updated');
+    }
+  });
+
+  const quiz = quizResult?.data || quizResult || ({} as any);
+  const questions = ((questionsResult?.data || []) as Question[]).filter(q => String(q.quizId) === String(params.id));
+
+  if (isQuizLoading) {
+    return <DashboardShell><PageHeader title="Quiz Details" description="Loading..." /></DashboardShell>;
+  }
 
   return (
     <DashboardShell>
@@ -40,26 +62,26 @@ export default function QuizDetailsPage() {
           <div className="flex gap-2">
             <Button variant="outline" asChild>
               <Link href="/quizzes">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                <ArrowLeft className="me-2 h-4 w-4 rtl:rotate-180" /> Back
               </Link>
             </Button>
             <Button variant="outline" asChild>
               <Link href={`/quizzes/${quiz.id}/edit`}>
-                <Pencil className="mr-2 h-4 w-4" /> Edit
+                <Pencil className="me-2 h-4 w-4" /> Edit
               </Link>
             </Button>
             {quiz.status === 'draft' && (
-              <Button onClick={() => toast.success('Quiz published')}>
-                <Send className="mr-2 h-4 w-4" /> Publish
+              <Button onClick={() => updateMutation.mutate('published')}>
+                <Send className="me-2 h-4 w-4" /> Publish
               </Button>
             )}
             {quiz.status === 'published' && (
-              <Button onClick={() => toast.success('Quiz started')}>
-                <Play className="mr-2 h-4 w-4" /> Start
+              <Button onClick={() => updateMutation.mutate('running')}>
+                <Play className="me-2 h-4 w-4" /> Start
               </Button>
             )}
             <Button variant="outline" onClick={() => toast.success('Quiz archived')}>
-              <Archive className="mr-2 h-4 w-4" /> Archive
+              <Archive className="me-2 h-4 w-4" /> Archive
             </Button>
           </div>
         }

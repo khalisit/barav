@@ -46,6 +46,8 @@ function mapStatusToVariant(status: string): StatusVariant {
     waiting: 'warning',
     archived: 'muted',
     banned: 'destructive',
+    inactive: 'muted',
+    deleted: 'destructive',
     suspended: 'warning',
     failed: 'destructive',
     generated: 'success',

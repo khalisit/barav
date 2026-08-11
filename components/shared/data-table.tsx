@@ -38,6 +38,52 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/shared/empty-state';
 import { exportToCsv, exportToExcel } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/hooks/use-language';
+
+const headerMap: Record<string, string> = {
+  'quiz': 'کویز',
+  'status': 'دۆخ',
+  'difficulty': 'ئاستی قورسی',
+  'questions': 'پرسیارەکان',
+  'participants': 'بەشداربووان',
+  'duration': 'ماوە',
+  'created': 'دروستکراوە',
+  'name': 'ناو',
+  'email': 'ئیمەیڵ',
+  'role': 'دەسەڵات',
+  'actions': 'کردارەکان',
+  'action': 'کردار',
+  'points': 'خاڵەکان',
+  'score': 'خاڵ',
+  'rank': 'ڕیزبەندی',
+  'category': 'جۆری بابەت',
+  'quizzes': 'کویزەکان',
+  'joined': 'تۆماربووە',
+  'user': 'بەکارهێنەر',
+  'target': 'ئامانج',
+  'time': 'کات',
+  'ip address': 'ناونیشانی IP',
+  'details': 'زانیارییەکان',
+  'description': 'ناساندن',
+  'quiz count': 'ژمارەی کویز',
+  'file name': 'ناوی فایل',
+  'type': 'جۆر',
+  'size': 'قەبارە',
+  'uploaded': 'بارکراوە',
+  'total points': 'کۆی خاڵەکان',
+  'played': 'یاری کردووە',
+  'won': 'بردوویەتی',
+  'date': 'ڕێکەوت',
+  'amount': 'بڕ',
+  'user name': 'ناوی بەکارهێنەر',
+  'resource': 'سەرچاوە',
+};
+
+const translateHeader = (header: string, language: string) => {
+  if (language !== 'ku') return header;
+  const key = header.toLowerCase().trim();
+  return headerMap[key] || header;
+};
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -47,10 +93,8 @@ interface DataTableProps<TData, TValue> {
   searchPlaceholder?: string;
   toolbar?: ReactNode;
   onBulkDelete?: (rows: TData[]) => void;
+  bulkActions?: (rows: TData[], clearSelection: () => void) => ReactNode;
   exportFilename?: string;
-  pageSize?: number;
-  emptyTitle?: string;
-  emptyDescription?: string;
 }
 
 export function DataTable<TData, TValue>({
@@ -61,6 +105,7 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = 'Search...',
   toolbar,
   onBulkDelete,
+  bulkActions,
   exportFilename = 'export',
   pageSize = 10,
   emptyTitle = 'No results found',
@@ -69,9 +114,14 @@ export function DataTable<TData, TValue>({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const { language } = useLanguage();
+
+  const resolvedSearchPlaceholder = searchPlaceholder === 'Search...' && language === 'ku' ? 'گەڕان...' : searchPlaceholder;
+  const resolvedEmptyTitle = emptyTitle === 'No results found' && language === 'ku' ? 'هیچ ئەنجامێک نەدۆزرایەوە' : emptyTitle;
+  const resolvedEmptyDescription = emptyDescription === 'Try adjusting your search or filters.' && language === 'ku' ? 'هەوڵ بدە گەڕانەکەت یان فلتەرەکان بگۆڕیت.' : emptyDescription;
 
   const tableColumns = useMemo(() => {
-    if (!onBulkDelete) return columns;
+    if (!onBulkDelete && !bulkActions) return columns;
     return [
       {
         id: 'select',
@@ -99,7 +149,7 @@ export function DataTable<TData, TValue>({
       },
       ...columns,
     ] as ColumnDef<TData, TValue>[];
-  }, [columns, onBulkDelete]);
+  }, [columns, onBulkDelete, bulkActions]);
 
   const table = useReactTable({
     data,
@@ -151,14 +201,14 @@ export function DataTable<TData, TValue>({
             <div className="relative w-full max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder={searchPlaceholder}
+                placeholder={resolvedSearchPlaceholder}
                 value={
                   (table.getColumn(searchKey)?.getFilterValue() as string) ?? ''
                 }
                 onChange={(e) =>
                   table.getColumn(searchKey)?.setFilterValue(e.target.value)
                 }
-                className="pl-9"
+                className="ps-9"
               />
             </div>
           )}
@@ -166,32 +216,37 @@ export function DataTable<TData, TValue>({
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleExportCsv}>
-            <Download className="mr-2 h-4 w-4" />
+            <Download className="me-2 h-4 w-4" />
             CSV
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportExcel}>
-            <Download className="mr-2 h-4 w-4" />
+            <Download className="me-2 h-4 w-4" />
             Excel
           </Button>
         </div>
       </div>
 
-      {selectedRows.length > 0 && onBulkDelete && (
-        <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 px-4 py-2">
-          <span className="text-sm font-medium text-destructive">
-            {selectedRows.length} row(s) selected
+      {selectedRows.length > 0 && (onBulkDelete || bulkActions) && (
+        <div className="flex items-center justify-between rounded-md border bg-muted/50 px-4 py-2">
+          <span className="text-sm font-medium">
+            {language === 'ku' ? `${selectedRows.length} دێڕ هەڵبژێردراوە` : `${selectedRows.length} row(s) selected`}
           </span>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => {
-              onBulkDelete(selectedRows);
-              setRowSelection({});
-            }}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete selected
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {bulkActions && bulkActions(selectedRows, () => setRowSelection({}))}
+            {onBulkDelete && !bulkActions && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  onBulkDelete(selectedRows);
+                  setRowSelection({});
+                }}
+              >
+                <Trash2 className="me-2 h-4 w-4" />
+                {language === 'ku' ? 'سڕینەوەی هەڵبژێردراوەکان' : 'Delete selected'}
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
@@ -204,14 +259,16 @@ export function DataTable<TData, TValue>({
                   <TableHead key={header.id} className="h-11">
                     {header.isPlaceholder ? null : (
                       <div className="flex items-center">
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        {typeof header.column.columnDef.header === 'string'
+                          ? translateHeader(header.column.columnDef.header, language)
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
                         {header.column.getCanSort() && (
                           <button
                             onClick={header.column.getToggleSortingHandler()}
-                            className="ml-1"
+                            className="ms-1"
                           >
                             <ArrowUpDown className="h-3 w-3" />
                           </button>
@@ -250,7 +307,7 @@ export function DataTable<TData, TValue>({
                   colSpan={tableColumns.length}
                   className="h-32 p-0"
                 >
-                  <EmptyState title={emptyTitle} description={emptyDescription} />
+                  <EmptyState title={resolvedEmptyTitle} description={resolvedEmptyDescription} />
                 </TableCell>
               </TableRow>
             )}
@@ -272,11 +329,14 @@ function DataTablePagination<TData>({ table }: PaginationProps<TData>) {
   const totalRows = table.getFilteredRowModel().rows.length;
   const startRow = pageIndex * pageSize + 1;
   const endRow = Math.min((pageIndex + 1) * pageSize, totalRows);
+  const { language } = useLanguage();
 
   return (
     <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
       <p className="text-sm text-muted-foreground">
-        Showing {totalRows === 0 ? 0 : startRow}–{endRow} of {totalRows} results
+        {language === 'ku'
+          ? `پیشاندانی ${totalRows === 0 ? 0 : startRow}–${endRow} لە کۆی ${totalRows} ئەنجام`
+          : `Showing ${totalRows === 0 ? 0 : startRow}–${endRow} of ${totalRows} results`}
       </p>
       <div className="flex items-center gap-2">
         <Button
@@ -286,7 +346,7 @@ function DataTablePagination<TData>({ table }: PaginationProps<TData>) {
           disabled={!table.getCanPreviousPage()}
           aria-label="First page"
         >
-          <ChevronsLeft className="h-4 w-4" />
+          <ChevronsLeft className="h-4 w-4 rtl:rotate-180" />
         </Button>
         <Button
           variant="outline"
@@ -295,10 +355,12 @@ function DataTablePagination<TData>({ table }: PaginationProps<TData>) {
           disabled={!table.getCanPreviousPage()}
           aria-label="Previous page"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
         </Button>
         <span className="text-sm font-medium text-muted-foreground">
-          Page {pageIndex + 1} of {table.getPageCount() || 1}
+          {language === 'ku'
+            ? `لاپەڕەی ${pageIndex + 1} لە ${table.getPageCount() || 1}`
+            : `Page ${pageIndex + 1} of ${table.getPageCount() || 1}`}
         </span>
         <Button
           variant="outline"
@@ -307,7 +369,7 @@ function DataTablePagination<TData>({ table }: PaginationProps<TData>) {
           disabled={!table.getCanNextPage()}
           aria-label="Next page"
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4 rtl:rotate-180" />
         </Button>
         <Button
           variant="outline"
@@ -316,7 +378,7 @@ function DataTablePagination<TData>({ table }: PaginationProps<TData>) {
           disabled={!table.getCanNextPage()}
           aria-label="Last page"
         >
-          <ChevronsRight className="h-4 w-4" />
+          <ChevronsRight className="h-4 w-4 rtl:rotate-180" />
         </Button>
       </div>
     </div>

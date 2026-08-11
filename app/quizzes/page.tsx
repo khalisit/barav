@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import type { ColumnDef } from '@tanstack/react-table';
 import { MoreHorizontal, Eye, Pencil, Archive, Play, Square, Trash2, Plus, Send } from 'lucide-react';
@@ -19,21 +20,52 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { generateQuizzes } from '@/lib/mock-data';
-import type { Quiz, QuizStatus } from '@/lib/types';
+import { api } from '@/lib/api-client';
+import type { Quiz, QuizStatus, Category } from '@/lib/types';
 import { formatDate } from '@/lib/format';
 import { toast } from 'sonner';
+import { useLanguage } from '@/hooks/use-language';
 
 export default function QuizzesPage() {
-  const [data, setData] = useState<Quiz[]>(() => generateQuizzes(30));
+  const { language } = useLanguage();
+  const queryClient = useQueryClient();
+  const { data: quizzesResult, isLoading } = useQuery<{ data: Quiz[] }>({
+    queryKey: ['quizzes'],
+    queryFn: () => api.get('/quizzes')
+  });
+  const { data: categoriesResult } = useQuery<{ data: Category[] }>({
+    queryKey: ['categories'],
+    queryFn: () => api.get('/categories')
+  });
+
+  const data = useMemo(() => Array.isArray(quizzesResult?.data) ? quizzesResult.data : Array.isArray(quizzesResult) ? quizzesResult : [], [quizzesResult]);
+  const categories = useMemo(() => Array.isArray(categoriesResult?.data) ? categoriesResult.data : Array.isArray(categoriesResult) ? categoriesResult : [], [categoriesResult]);
+
   const [deleteTarget, setDeleteTarget] = useState<Quiz | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Quiz | null>(null);
   const [publishTarget, setPublishTarget] = useState<Quiz | null>(null);
   const [startTarget, setStartTarget] = useState<Quiz | null>(null);
   const [endTarget, setEndTarget] = useState<Quiz | null>(null);
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string, status: QuizStatus }) => api.put(`/quizzes/${id}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quizzes'] });
+      toast.success('Quiz status updated');
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/quizzes/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quizzes'] });
+      toast.success('Quiz deleted');
+      setDeleteTarget(null);
+    }
+  });
+
   const updateStatus = (id: string, status: QuizStatus) => {
-    setData((prev) => prev.map((q) => (q.id === id ? { ...q, status } : q)));
+    updateMutation.mutate({ id, status });
   };
 
   const columns = useMemo<ColumnDef<Quiz>[]>(
@@ -46,7 +78,7 @@ export default function QuizzesPage() {
             <Link href={`/quizzes/${row.original.id}`} className="font-medium text-foreground hover:text-primary">
               {row.original.title}
             </Link>
-            <p className="text-xs text-muted-foreground">{row.original.categoryName}</p>
+            <p className="text-xs text-muted-foreground">{categories.find((c: any) => c.id === row.original.categoryId)?.name || row.original.categoryName || 'Unknown Category'}</p>
           </div>
         ),
       },
@@ -108,47 +140,51 @@ export default function QuizzesPage() {
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem asChild>
                 <Link href={`/quizzes/${row.original.id}`}>
-                  <Eye className="mr-2 h-4 w-4" /> View
+                  <Eye className="me-2 h-4 w-4" /> View
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href={`/quizzes/${row.original.id}/edit`}>
-                  <Pencil className="mr-2 h-4 w-4" /> Edit
+                  <Pencil className="me-2 h-4 w-4" /> Edit
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               {row.original.status === 'draft' && (
                 <DropdownMenuItem onClick={() => setPublishTarget(row.original)}>
-                  <Send className="mr-2 h-4 w-4" /> Publish
+                  <Send className="me-2 h-4 w-4" /> Publish
                 </DropdownMenuItem>
               )}
               {row.original.status === 'published' && (
                 <DropdownMenuItem onClick={() => setStartTarget(row.original)}>
-                  <Play className="mr-2 h-4 w-4" /> Start
+                  <Play className="me-2 h-4 w-4" /> Start
                 </DropdownMenuItem>
               )}
               {row.original.status === 'running' && (
                 <DropdownMenuItem onClick={() => setEndTarget(row.original)}>
-                  <Square className="mr-2 h-4 w-4" /> End
+                  <Square className="me-2 h-4 w-4" /> End
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => setArchiveTarget(row.original)}>
-                <Archive className="mr-2 h-4 w-4" /> Archive
+                <Archive className="me-2 h-4 w-4" /> Archive
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setDeleteTarget(row.original)}
                 className="text-destructive focus:text-destructive"
               >
-                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                <Trash2 className="me-2 h-4 w-4" /> Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ),
       },
     ],
-    []
+    [categories]
   );
+
+  if (isLoading) {
+    return <DashboardShell><PageHeader title="Quizzes" description="Loading quizzes..." /></DashboardShell>;
+  }
 
   return (
     <DashboardShell>
@@ -159,7 +195,7 @@ export default function QuizzesPage() {
         actions={
           <Button asChild>
             <Link href="/quizzes/create">
-              <Plus className="mr-2 h-4 w-4" /> Create Quiz
+              <Plus className="me-2 h-4 w-4" /> {language === 'ku' ? 'دروستکردنی کویز' : 'Create Quiz'}
             </Link>
           </Button>
         }
@@ -168,12 +204,10 @@ export default function QuizzesPage() {
         columns={columns}
         data={data}
         searchKey="title"
-        searchPlaceholder="Search quizzes..."
+        searchPlaceholder={language === 'ku' ? 'گەڕانی کویزەکان...' : 'Search quizzes...'}
         exportFilename="quizzes"
         onBulkDelete={(rows) => {
-          const ids = new Set(rows.map((r) => r.id));
-          setData((prev) => prev.filter((q) => !ids.has(q.id)));
-          toast.success(`Deleted ${rows.length} quiz(zes)`);
+          rows.forEach((r) => deleteMutation.mutate(r.id));
         }}
       />
 
@@ -185,9 +219,7 @@ export default function QuizzesPage() {
         confirmLabel="Delete"
         onConfirm={() => {
           if (deleteTarget) {
-            setData((prev) => prev.filter((q) => q.id !== deleteTarget.id));
-            toast.success('Quiz deleted');
-            setDeleteTarget(null);
+            deleteMutation.mutate(deleteTarget.id);
           }
         }}
       />

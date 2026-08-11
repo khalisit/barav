@@ -3,81 +3,85 @@
 @tailwind utilities;
 
 @layer base {
+  [lang="ku"], [lang="ku"] body {
+    font-family: var(--font-noto-sans-arabic), system-ui, -apple-system, sans-serif !important;
+  }
+
   :root {
-    /* ── Light mode (generated to match the dark palette) ─────── */
-    --background: 225 40% 97%;            /* soft lavender-white */
-    --foreground: 225 49% 12%;            /* deep navy ink */
+    /* ── Light mode (matching Flutter Light palette) ─────── */
+    --background: 252 38% 96%;            /* #F3F1FA */
+    --foreground: 223 39% 13%;            /* #141B2D */
     --card: 0 0% 100%;                    /* #FFFFFF */
-    --card-foreground: 225 49% 12%;
+    --card-foreground: 223 39% 13%;
     --popover: 0 0% 100%;
-    --popover-foreground: 225 49% 12%;
-    --primary: 255 100% 62%;              /* #6C3BFF */
+    --popover-foreground: 223 39% 13%;
+    --primary: 263 92% 57%;              /* #7B2CF5 (Brand Purple) */
     --primary-foreground: 0 0% 100%;      /* #FFFFFF */
-    --secondary: 257 100% 68%;            /* #8B5CFF */
-    --secondary-foreground: 225 49% 12%;
-    --muted: 225 30% 94%;
-    --muted-foreground: 225 15% 45%;
-    --accent: 43 100% 48%;                /* #F6B100 */
-    --accent-foreground: 225 49% 12%;
+    --secondary: 272 100% 68%;            /* #B35CFF (purpleLight) */
+    --secondary-foreground: 223 39% 13%;
+    --muted: 255 38% 93%;                 /* #EAE6F6 (surfaceHigh) */
+    --muted-foreground: 223 12% 48%;      /* #6B7389 */
+    --accent: 255 38% 93%;                 /* Clean neutral-lavender hover background */
+    --accent-foreground: 223 39% 13%;     /* Standard text color on hover */
     --destructive: 349 100% 65%;          /* #FF4D6D */
     --destructive-foreground: 0 0% 100%;
     --success: 166 63% 50%;               /* #31D0AA */
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;                /* amber */
-    --warning-foreground: 225 49% 12%;
+    --warning-foreground: 223 39% 13%;
     --info: 217 91% 60%;                  /* blue */
     --info-foreground: 0 0% 100%;
-    --border: 225 25% 88%;
-    --input: 225 25% 88%;
-    --ring: 255 100% 62%;                 /* primary */
-    --chart-1: 255 100% 62%;              /* primary */
-    --chart-2: 257 100% 68%;              /* secondary */
-    --chart-3: 43 100% 48%;               /* accent gold */
-    --chart-4: 166 63% 50%;               /* success */
-    --chart-5: 349 100% 65%;              /* danger */
-    --chart-6: 217 91% 60%;               /* info */
-    --radius: 0.625rem;
-    --sidebar: 0 0% 100%;                 /* #FFFFFF */
-    --sidebar-foreground: 225 49% 12%;
-    --sidebar-border: 225 25% 88%;
+    --border: 255 24% 88%;                /* #D9D4E8 (stroke) */
+    --input: 255 24% 88%;
+    --ring: 263 92% 57%;
+    --chart-1: 263 92% 57%;
+    --chart-2: 272 100% 68%;
+    --chart-3: 272 100% 68%;
+    --chart-4: 166 63% 50%;
+    --chart-5: 349 100% 65%;
+    --chart-6: 217 91% 60%;
+    --radius: 0.9375rem;                  /* 15px to match Flutter borderRadius */
+    --sidebar: 0 0% 100%;
+    --sidebar-foreground: 223 39% 13%;
+    --sidebar-border: 255 24% 88%;
   }
 
   .dark {
-    /* ── Dark mode (your palette) ────────────────────────────── */
-    --background: 225 49% 8%;             /* #0B1020 */
-    --foreground: 0 0% 100%;              /* #FFFFFF */
-    --card: 225 40% 13%;                  /* lifted surface */
-    --card-foreground: 0 0% 100%;
-    --popover: 225 40% 13%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 255 100% 62%;              /* #6C3BFF */
+    /* ── Dark mode (matching Flutter Dark palette) ────────────────────────────── */
+    --background: 222 47% 11%;            /* #10172A */
+    --foreground: 240 8% 96%;             /* #F5F5F7 */
+    --card: 221 37% 16%;                  /* #1A2338 */
+    --card-foreground: 240 8% 96%;
+    --popover: 221 37% 16%;
+    --popover-foreground: 240 8% 96%;
+    --primary: 263 92% 57%;              /* #7B2CF5 */
     --primary-foreground: 0 0% 100%;      /* #FFFFFF */
-    --secondary: 257 100% 68%;            /* #8B5CFF */
-    --secondary-foreground: 0 0% 100%;
-    --muted: 225 35% 18%;
-    --muted-foreground: 225 20% 65%;
-    --accent: 43 100% 48%;                /* #F6B100 */
-    --accent-foreground: 225 49% 8%;      /* dark text on gold */
+    --secondary: 272 100% 68%;            /* #B35CFF */
+    --secondary-foreground: 240 8% 96%;
+    --muted: 221 34% 21%;                 /* #222D46 (surfaceHigh) */
+    --muted-foreground: 223 18% 62%;      /* #8B95AE */
+    --accent: 221 34% 21%;                 /* Clean neutral-slate hover background */
+    --accent-foreground: 240 8% 96%;      /* Standard text color on hover */
     --destructive: 349 100% 65%;          /* #FF4D6D */
     --destructive-foreground: 0 0% 100%;
     --success: 166 63% 50%;               /* #31D0AA */
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;                /* amber */
-    --warning-foreground: 225 49% 8%;
+    --warning-foreground: 222 47% 11%;
     --info: 217 91% 60%;                  /* blue */
     --info-foreground: 0 0% 100%;
-    --border: 225 30% 22%;
-    --input: 225 30% 22%;
-    --ring: 255 100% 62%;                 /* primary */
-    --chart-1: 255 100% 62%;              /* primary */
-    --chart-2: 257 100% 68%;              /* secondary */
-    --chart-3: 43 100% 48%;               /* accent gold */
-    --chart-4: 166 63% 50%;               /* success */
-    --chart-5: 349 100% 65%;              /* danger */
-    --chart-6: 217 91% 60%;               /* info */
-    --sidebar: 225 45% 11%;              /* slightly lifted from bg */
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-border: 225 30% 22%;
+    --border: 222 30% 25%;                /* #2C3752 (stroke) */
+    --input: 222 30% 25%;
+    --ring: 263 92% 57%;
+    --chart-1: 263 92% 57%;
+    --chart-2: 272 100% 68%;
+    --chart-3: 272 100% 68%;
+    --chart-4: 166 63% 50%;
+    --chart-5: 349 100% 65%;
+    --chart-6: 217 91% 60%;
+    --sidebar: 221 37% 16%;
+    --sidebar-foreground: 240 8% 96%;
+    --sidebar-border: 222 30% 25%;
   }
 }
 
@@ -88,6 +92,14 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: var(--font-poppins), system-ui, -apple-system, sans-serif;
+    font-weight: 400;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700 !important;
+  }
+  button, a, [role="button"], select, input[type="submit"] {
+    font-weight: 500 !important;
   }
 }
 

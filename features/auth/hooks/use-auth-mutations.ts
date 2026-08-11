@@ -26,7 +26,7 @@ export function useLogin() {
       router.push('/dashboard');
     },
     onError: () => {
-      toast.error('Invalid email or password');
+      toast.error('Invalid username or password');
     },
   });
 }

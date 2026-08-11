@@ -6,6 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatNumber } from '@/lib/format';
 
+import { useLanguage } from '@/hooks/use-language';
+
 interface StatCardProps {
   title: string;
   value: number | string;
@@ -33,6 +35,7 @@ export function StatCard({
   accent = 'primary',
   delay = 0,
 }: StatCardProps) {
+  const { language } = useLanguage();
   const formattedValue =
     typeof value === 'string'
       ? value
@@ -61,7 +64,7 @@ export function StatCard({
                 {formattedValue}
               </p>
               {change !== undefined && (
-                <div className="flex items-center gap-1 text-xs">
+                <div className="flex items-center gap-1 text-xs" dir={language === 'ku' ? 'rtl' : 'ltr'}>
                   {change >= 0 ? (
                     <ArrowUpRight className="h-3.5 w-3.5 text-success" />
                   ) : (
@@ -76,7 +79,9 @@ export function StatCard({
                     {change >= 0 ? '+' : ''}
                     {change.toFixed(1)}%
                   </span>
-                  <span className="text-muted-foreground">vs last period</span>
+                  <span className="text-muted-foreground">
+                    {language === 'ku' ? 'بەراورد بە ماوەی پێشوو' : 'vs last period'}
+                  </span>
                 </div>
               )}
             </div>

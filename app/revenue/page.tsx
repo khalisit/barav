@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2, Wallet, TrendingUp, TrendingDown, DollarSign, Receipt } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
@@ -37,9 +38,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { supabase } from '@/lib/supabase-client';
+import { api } from '@/lib/api-client';
 import { formatCurrency, formatDate } from '@/lib/format';
+import type { Revenue, Expense } from '@/lib/types';
 import { toast } from 'sonner';
+import { useLanguage } from '@/hooks/use-language';
 
 interface Transaction {
   id: string;
@@ -58,9 +61,70 @@ type TransactionType = 'revenue' | 'expense';
 const REVENUE_CATEGORIES = ['Subscription', 'Ads', 'Sponsorship', 'In-App Purchase', 'Licensing', 'Other'];
 const EXPENSE_CATEGORIES = ['Server Costs', 'Salaries', 'Marketing', 'Software', 'Office', 'Other'];
 
+const categoryTranslations: Record<string, string> = {
+  // Revenue
+  'subscription': 'بەشداریکردن',
+  'ads': 'ڕیکلامەکان',
+  'sponsorship': 'سپۆنسەری',
+  'in-app purchase': 'کڕینی ناو ئەپڵیکەیشن',
+  'licensing': 'مۆڵەتدان',
+  // Expenses
+  'server costs': 'خەرجی سێرڤەر',
+  'salaries': 'مووچەکان',
+  'marketing': 'مارکێتینگ',
+  'software': 'نەرمەکاڵاکان',
+  'office': 'نووسینگە',
+  // General
+  'other': 'هیتر',
+};
+
+const translateCategory = (cat: string, language: string) => {
+  if (language !== 'ku') return cat;
+  const key = cat.toLowerCase().trim();
+  return categoryTranslations[key] || cat;
+};
+
 export default function RevenueExpensesPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { language } = useLanguage();
+  const queryClient = useQueryClient();
+
+  const { data: revenueResult, isLoading: loadingRevenue } = useQuery<{ data: Revenue[] }>({
+    queryKey: ['revenue'],
+    queryFn: () => api.get('/revenue')
+  });
+
+  const { data: expenseResult, isLoading: loadingExpense } = useQuery<{ data: Expense[] }>({
+    queryKey: ['expenses'],
+    queryFn: () => api.get('/expenses')
+  });
+
+  const transactions = useMemo<Transaction[]>(() => {
+    const revs = ((revenueResult?.data || []) as any[]).map((r) => ({
+      id: r.id,
+      type: 'revenue' as const,
+      title: r.description || '',
+      category: r.source,
+      amount: r.amount,
+      date: r.date,
+      note: r.status,
+      created_at: r.createdAt,
+      updated_at: r.createdAt,
+    }));
+    const exps = ((expenseResult?.data || []) as any[]).map((e) => ({
+      id: e.id,
+      type: 'expense' as const,
+      title: e.description || '',
+      category: e.category,
+      amount: e.amount,
+      date: e.date,
+      note: e.status,
+      created_at: e.createdAt,
+      updated_at: e.createdAt,
+    }));
+    return [...revs, ...exps].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [revenueResult, expenseResult]);
+
+  const loading = loadingRevenue || loadingExpense;
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -74,23 +138,24 @@ export default function RevenueExpensesPage() {
   const [formDate, setFormDate] = useState('');
   const [formNote, setFormNote] = useState('');
 
-  const fetchTransactions = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('*')
-      .order('date', { ascending: false });
-    if (error) {
-      toast.error('Failed to load transactions');
-    } else {
-      setTransactions((data as Transaction[]) ?? []);
+  const deleteMutation = useMutation({
+    mutationFn: (tx: Transaction) => {
+      if (tx.type === 'revenue') return api.delete(`/revenue/${tx.id}`);
+      return api.delete(`/expenses/${tx.id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['revenue'] });
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      toast.success(language === 'ku' ? 'سەوداکە بە سەرکەوتوویی سڕایەوە' : 'Transaction deleted');
+      setDeleteTarget(null);
     }
-    setLoading(false);
-  }, []);
+  });
 
-  useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+  const handleDelete = () => {
+    if (deleteTarget) {
+      deleteMutation.mutate(deleteTarget);
+    }
+  };
 
   const filtered = useMemo(
     () => (filterType === 'all' ? transactions : transactions.filter((t) => t.type === filterType)),
@@ -129,16 +194,60 @@ export default function RevenueExpensesPage() {
     setEditOpen(true);
   };
 
+  const createMutation = useMutation({
+    mutationFn: (payload: any) => {
+      const isRev = payload.type === 'revenue';
+      const endpoint = isRev ? '/revenue' : '/expenses';
+      const apiPayload = isRev 
+        ? { amount: payload.amount, currency: 'USD', source: payload.category.toLowerCase(), description: payload.title, date: payload.date, status: payload.note || 'completed' }
+        : { amount: payload.amount, currency: 'USD', category: payload.category.toLowerCase().replace(' ', '_'), description: payload.title, date: payload.date, status: payload.note || 'completed' };
+      return api.post(endpoint, apiPayload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['revenue'] });
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      toast.success(language === 'ku' ? 'سەوداکە بە سەرکەوتوویی دروستکرا' : 'Transaction created');
+      setEditOpen(false);
+      setSaving(false);
+    },
+    onError: () => {
+      toast.error(language === 'ku' ? 'تۆمارکردنی سەوداکە سەرکەوتوو نەبوو' : 'Failed to create transaction');
+      setSaving(false);
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: any) => {
+      const isRev = payload.type === 'revenue';
+      const endpoint = isRev ? `/revenue/${editing?.id}` : `/expenses/${editing?.id}`;
+      const apiPayload = isRev 
+        ? { amount: payload.amount, currency: 'USD', source: payload.category.toLowerCase(), description: payload.title, date: payload.date, status: payload.note || 'completed' }
+        : { amount: payload.amount, currency: 'USD', category: payload.category.toLowerCase().replace(' ', '_'), description: payload.title, date: payload.date, status: payload.note || 'completed' };
+      return api.put(endpoint, apiPayload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['revenue'] });
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      toast.success(language === 'ku' ? 'سەوداکە نوێکرایەوە' : 'Transaction updated');
+      setEditOpen(false);
+      setSaving(false);
+    },
+    onError: () => {
+      toast.error(language === 'ku' ? 'نوێکردنەوەی سەوداکە سەرکەوتوو نەبوو' : 'Failed to update transaction');
+      setSaving(false);
+    }
+  });
+
   const categories = formType === 'revenue' ? REVENUE_CATEGORIES : EXPENSE_CATEGORIES;
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!formTitle.trim() || !formCategory || !formAmount || !formDate) {
-      toast.error('Please fill in all required fields');
+      toast.error(language === 'ku' ? 'تکایە هەموو خانە پێویستەکان پڕبکەرەوە' : 'Please fill in all required fields');
       return;
     }
     const amount = parseFloat(formAmount);
     if (isNaN(amount) || amount < 0) {
-      toast.error('Amount must be a valid positive number');
+      toast.error(language === 'ku' ? 'پێویستە بڕەکە ژمارەیەکی دروست و ئەرێنی بێت' : 'Amount must be a valid positive number');
       return;
     }
 
@@ -153,45 +262,9 @@ export default function RevenueExpensesPage() {
     };
 
     if (editing) {
-      const { error } = await supabase
-        .from('transactions')
-        .update({ ...payload, updated_at: new Date().toISOString() })
-        .eq('id', editing.id);
-      if (error) {
-        toast.error('Failed to update transaction');
-      } else {
-        toast.success('Transaction updated');
-        setTransactions((prev) =>
-          prev.map((t) => (t.id === editing.id ? { ...t, ...payload } as Transaction : t))
-        );
-        setEditOpen(false);
-      }
+      updateMutation.mutate(payload);
     } else {
-      const { data, error } = await supabase
-        .from('transactions')
-        .insert(payload)
-        .select()
-        .single();
-      if (error) {
-        toast.error('Failed to create transaction');
-      } else {
-        toast.success('Transaction created');
-        setTransactions((prev) => [data as Transaction, ...prev]);
-        setEditOpen(false);
-      }
-    }
-    setSaving(false);
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    const { error } = await supabase.from('transactions').delete().eq('id', deleteTarget.id);
-    if (error) {
-      toast.error('Failed to delete transaction');
-    } else {
-      toast.success('Transaction deleted');
-      setTransactions((prev) => prev.filter((t) => t.id !== deleteTarget.id));
-      setDeleteTarget(null);
+      createMutation.mutate(payload);
     }
   };
 
@@ -203,34 +276,38 @@ export default function RevenueExpensesPage() {
         breadcrumbs={[{ label: 'Home', href: '/dashboard' }, { label: 'Revenue & Expenses' }]}
         actions={
           <Button onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" /> Add Transaction
+            <Plus className="me-2 h-4 w-4" /> {language === 'ku' ? 'زیادکردنی سەودا' : 'Add Transaction'}
           </Button>
         }
       />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard title="Total Revenue" value={totals.revenue} icon={TrendingUp} format="currency" accent="success" delay={0} />
-        <StatCard title="Total Expenses" value={totals.expense} icon={TrendingDown} format="currency" accent="destructive" delay={0.05} />
-        <StatCard title="Net Balance" value={totals.net} icon={Wallet} format="currency" accent={totals.net >= 0 ? 'primary' : 'destructive'} delay={0.1} />
+        <StatCard title={language === 'ku' ? 'کۆی داهات' : 'Total Revenue'} value={totals.revenue} icon={TrendingUp} format="currency" accent="success" delay={0} />
+        <StatCard title={language === 'ku' ? 'کۆی خەرجییەکان' : 'Total Expenses'} value={totals.expense} icon={TrendingDown} format="currency" accent="destructive" delay={0.05} />
+        <StatCard title={language === 'ku' ? 'هاوسەنگیی گشتی' : 'Net Balance'} value={totals.net} icon={Wallet} format="currency" accent={totals.net >= 0 ? 'primary' : 'destructive'} delay={0.1} />
       </div>
 
       {/* Filter Bar */}
       <div className="mt-6 flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-muted-foreground">Filter:</span>
+          <span className="text-sm font-medium text-muted-foreground">
+            {language === 'ku' ? 'فلتەر:' : 'Filter:'}
+          </span>
           <Select value={filterType} onValueChange={(v) => setFilterType(v as 'all' | TransactionType)}>
             <SelectTrigger className="w-[160px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Transactions</SelectItem>
-              <SelectItem value="revenue">Revenue Only</SelectItem>
-              <SelectItem value="expense">Expenses Only</SelectItem>
+              <SelectItem value="all">{language === 'ku' ? 'هەموو سەوداکان' : 'All Transactions'}</SelectItem>
+              <SelectItem value="revenue">{language === 'ku' ? 'تەنها داهات' : 'Revenue Only'}</SelectItem>
+              <SelectItem value="expense">{language === 'ku' ? 'تەنها خەرجییەکان' : 'Expenses Only'}</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        <span className="text-sm text-muted-foreground">{filtered.length} records</span>
+        <span className="text-sm text-muted-foreground">
+          {filtered.length} {language === 'ku' ? 'تۆمار' : 'records'}
+        </span>
       </div>
 
       {/* Table */}
@@ -241,11 +318,11 @@ export default function RevenueExpensesPage() {
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={Receipt}
-              title="No transactions yet"
-              description="Add your first revenue or expense entry to start tracking."
+              title={language === 'ku' ? 'هیچ سەودایەک تۆمار نەکراوە' : 'No transactions yet'}
+              description={language === 'ku' ? 'یەکەم تۆماری داهات یان خەرجی بنووسە بۆ دەستپێکردنی بەدواداچوون.' : 'Add your first revenue or expense entry to start tracking.'}
               action={
                 <Button onClick={openCreate}>
-                  <Plus className="mr-2 h-4 w-4" /> Add Transaction
+                  <Plus className="me-2 h-4 w-4" /> {language === 'ku' ? 'زیادکردنی سەودا' : 'Add Transaction'}
                 </Button>
               }
             />
@@ -253,13 +330,13 @@ export default function RevenueExpensesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[100px]">Type</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Note</TableHead>
-                  <TableHead className="w-[80px] text-right">Actions</TableHead>
+                  <TableHead className="w-[100px]">{language === 'ku' ? 'جۆر' : 'Type'}</TableHead>
+                  <TableHead>{language === 'ku' ? 'ناونیشان' : 'Title'}</TableHead>
+                  <TableHead>{language === 'ku' ? 'جۆری بابەت' : 'Category'}</TableHead>
+                  <TableHead className="text-end">{language === 'ku' ? 'بڕ' : 'Amount'}</TableHead>
+                  <TableHead>{language === 'ku' ? 'ڕێکەوت' : 'Date'}</TableHead>
+                  <TableHead>{language === 'ku' ? 'تێبینی' : 'Note'}</TableHead>
+                  <TableHead className="w-[80px] text-end">{language === 'ku' ? 'کردارەکان' : 'Actions'}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -276,16 +353,18 @@ export default function RevenueExpensesPage() {
                         variant="outline"
                         className={
                           tx.type === 'revenue'
-                            ? 'bg-success/10 text-success border-success/20 capitalize'
-                            : 'bg-destructive/10 text-destructive border-destructive/20 capitalize'
+                            ? 'bg-success/10 text-success border-success/20 capitalize font-medium'
+                            : 'bg-destructive/10 text-destructive border-destructive/20 capitalize font-medium'
                         }
                       >
-                        {tx.type}
+                        {tx.type === 'revenue'
+                          ? (language === 'ku' ? 'داهات' : 'revenue')
+                          : (language === 'ku' ? 'خەرجی' : 'expense')}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">{tx.title}</TableCell>
-                    <TableCell className="text-muted-foreground">{tx.category}</TableCell>
-                    <TableCell className="text-right font-semibold">
+                    <TableCell className="text-muted-foreground">{translateCategory(tx.category, language)}</TableCell>
+                    <TableCell className="text-end font-semibold">
                       <span className={tx.type === 'revenue' ? 'text-success' : 'text-destructive'}>
                         {tx.type === 'revenue' ? '+' : '-'}
                         {formatCurrency(Number(tx.amount))}
@@ -295,7 +374,7 @@ export default function RevenueExpensesPage() {
                     <TableCell className="max-w-[200px] truncate text-muted-foreground">
                       {tx.note ?? '-'}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-end">
                       <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(tx)}>
                           <Pencil className="h-4 w-4" />
@@ -317,11 +396,15 @@ export default function RevenueExpensesPage() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Edit Transaction' : 'New Transaction'}</DialogTitle>
+            <DialogTitle>
+              {editing
+                ? (language === 'ku' ? 'دەستکاری سەودا' : 'Edit Transaction')
+                : (language === 'ku' ? 'سەودای نوێ' : 'New Transaction')}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Type</Label>
+              <Label>{language === 'ku' ? 'جۆر' : 'Type'}</Label>
               <Select
                 value={formType}
                 onValueChange={(v) => {
@@ -333,38 +416,38 @@ export default function RevenueExpensesPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="revenue">Revenue</SelectItem>
-                  <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="revenue">{language === 'ku' ? 'داهات' : 'Revenue'}</SelectItem>
+                  <SelectItem value="expense">{language === 'ku' ? 'خەرجی' : 'Expense'}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="tx-title">Title</Label>
+              <Label htmlFor="tx-title">{language === 'ku' ? 'ناونیشان' : 'Title'}</Label>
               <Input
                 id="tx-title"
                 value={formTitle}
                 onChange={(e) => setFormTitle(e.target.value)}
-                placeholder="e.g. Monthly subscription revenue"
+                placeholder={language === 'ku' ? 'ناونیشانی سەودا (بۆ نموونە: داهاتی بەشداریکردنی مانگانە)' : 'e.g. Monthly subscription revenue'}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Category</Label>
+                <Label>{language === 'ku' ? 'جۆری بابەت' : 'Category'}</Label>
                 <Select value={formCategory} onValueChange={setFormCategory}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
+                    <SelectValue placeholder={language === 'ku' ? 'جۆری بابەت هەڵبژێرە' : 'Select category'} />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((c) => (
                       <SelectItem key={c} value={c}>
-                        {c}
+                        {translateCategory(c, language)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="tx-amount">Amount ($)</Label>
+                <Label htmlFor="tx-amount">{language === 'ku' ? 'بڕ ($)' : 'Amount ($)'}</Label>
                 <Input
                   id="tx-amount"
                   type="number"
@@ -377,7 +460,7 @@ export default function RevenueExpensesPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="tx-date">Date</Label>
+              <Label htmlFor="tx-date">{language === 'ku' ? 'ڕێکەوت' : 'Date'}</Label>
               <Input
                 id="tx-date"
                 type="date"
@@ -386,22 +469,24 @@ export default function RevenueExpensesPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="tx-note">Note (optional)</Label>
+              <Label htmlFor="tx-note">{language === 'ku' ? 'تێبینی (ئارەزوومەندانە)' : 'Note (optional)'}</Label>
               <Textarea
                 id="tx-note"
                 value={formNote}
                 onChange={(e) => setFormNote(e.target.value)}
-                placeholder="Additional details..."
+                placeholder={language === 'ku' ? 'زانیاری و وردەکاری زیاتر...' : 'Additional details...'}
                 rows={3}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>
-              Cancel
+              {language === 'ku' ? 'پاشگەزبوونەوە' : 'Cancel'}
             </Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving...' : 'Save'}
+              {saving
+                ? (language === 'ku' ? 'پاشەکەوت دەکرێت...' : 'Saving...')
+                : (language === 'ku' ? 'پاشەکەوتکردن' : 'Save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -410,9 +495,13 @@ export default function RevenueExpensesPage() {
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(o) => !o && setDeleteTarget(null)}
-        title="Delete transaction?"
-        description={`"${deleteTarget?.title}" will be permanently removed.`}
-        confirmLabel="Delete"
+        title={language === 'ku' ? 'سڕینەوەی سەودا؟' : 'Delete transaction?'}
+        description={
+          language === 'ku'
+            ? `سەودای "${deleteTarget?.title}" بەتەواوی دەسڕێتەوە.`
+            : `"${deleteTarget?.title}" will be permanently removed.`
+        }
+        confirmLabel={language === 'ku' ? 'بسڕەوە' : 'Delete'}
         onConfirm={handleDelete}
       />
     </DashboardShell>

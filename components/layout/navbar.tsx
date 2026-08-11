@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/sheet';
 import { Sidebar } from '@/components/layout/sidebar';
 import { ThemeSwitcher } from '@/components/shared/theme-switcher';
+import { LanguageSwitcher } from '@/components/shared/language-switcher';
+import { useLanguage } from '@/hooks/use-language';
 import { useAuth } from '@/features/auth/components/auth-provider';
 import { useLogout } from '@/features/auth/hooks/use-auth-mutations';
 import { getInitials } from '@/lib/format';
@@ -40,7 +42,9 @@ export function Navbar() {
   const { user } = useAuth();
   const logout = useLogout();
   const router = useRouter();
+  const { t, language } = useLanguage();
   const [commandOpen, setCommandOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -60,14 +64,14 @@ export function Navbar() {
   return (
     <>
       <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md md:px-6">
-        <Sheet>
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0">
-            <Sidebar />
+          <SheetContent side={language === 'ku' ? 'right' : 'left'} className="w-72 p-0" dir={language === 'ku' ? 'rtl' : 'ltr'}>
+            <Sidebar onNavigate={() => setSidebarOpen(false)} />
           </SheetContent>
         </Sheet>
 
@@ -76,53 +80,54 @@ export function Navbar() {
           className="group flex w-full max-w-md items-center gap-2 rounded-md border border-input bg-muted/40 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted md:max-w-sm"
         >
           <Search className="h-4 w-4" />
-          <span className="flex-1 text-left">Search...</span>
+          <span className="flex-1 text-start">{language === 'ku' ? 'گەڕان...' : 'Search...'}</span>
           <kbd className="hidden rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium sm:inline-block">
             ⌘K
           </kbd>
         </button>
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ms-auto flex items-center gap-1">
           <Button variant="ghost" size="icon" aria-label="Notifications">
             <Link href="/notifications">
               <Bell className="h-5 w-5" />
             </Link>
           </Button>
           <ThemeSwitcher />
+          <LanguageSwitcher />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="ml-1 flex items-center gap-2 rounded-md p-1 transition-colors hover:bg-accent" aria-label="User menu">
+              <button className="ms-1 flex items-center gap-3 rounded-md px-3 py-1 transition-colors hover:bg-accent" aria-label="User menu">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.name ?? ''} />
                   <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
                     {user ? getInitials(user.name) : 'AD'}
                   </AvatarFallback>
                 </Avatar>
-                <div className="hidden text-left lg:block">
-                  <p className="text-sm font-medium leading-tight text-foreground">
-                    {user?.name ?? 'Admin'}
+                <div className="hidden text-start lg:block">
+                  <p className="text-sm font-semibold leading-tight text-foreground">
+                    {user?.name ?? (language === 'ku' ? 'ئەدمین' : 'Admin')}
                   </p>
-                  <p className="text-[11px] leading-tight text-muted-foreground">
-                    {user?.role.replace('_', ' ') ?? 'admin'}
+                  <p className="text-[11px] text-muted-foreground leading-none mt-0.5">
+                    {language === 'ku' ? 'بەڕێوبەر' : 'Manager'}
                   </p>
                 </div>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuLabel>{t('account.title')}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => router.push('/profile')}>
-                Profile
+                {t('account.profile')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => router.push('/settings')}>
-                Settings
+                {t('account.settings')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => logout.mutate()}
                 className="text-destructive focus:text-destructive"
               >
-                Log out
+                {t('nav.logout')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -144,7 +149,7 @@ export function Navbar() {
                     setCommandOpen(false);
                   }}
                 >
-                  <Icon className="mr-2 h-4 w-4" />
+                  <Icon className="me-2 h-4 w-4" />
                   {item.label}
                 </CommandItem>
               );

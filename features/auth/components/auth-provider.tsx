@@ -4,7 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../store/auth-store';
 import { setAccessToken, setOnUnauthorized } from '@/lib/api-client';
-import type { AuthUser, Permission, UserRole } from '../types';
+import type { AuthUser } from '../types';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -51,7 +51,5 @@ export function useAuth() {
     isAuthenticated: store.isAuthenticated,
     isLoading: store.isLoading,
     hasHydrated: store.hasHydrated,
-    hasPermission: (perm: Permission) => store.hasPermission(perm),
-    hasRole: (role: UserRole | UserRole[]) => store.hasRole(role),
   };
 }

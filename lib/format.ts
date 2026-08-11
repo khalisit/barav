@@ -4,6 +4,19 @@ export function formatNumber(value: number): string {
   return value.toLocaleString();
 }
 
+export function parseKurdishNumbers(str: string): string {
+  if (!str) return str;
+  const easternNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  const persianNumbers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+  
+  let result = str;
+  for (let i = 0; i < 10; i++) {
+    result = result.split(easternNumbers[i]).join(i.toString());
+    result = result.split(persianNumbers[i]).join(i.toString());
+  }
+  return result;
+}
+
 export function formatCurrency(value: number, currency = 'USD'): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -24,27 +37,36 @@ export function formatPercent(value: number): string {
   return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
 }
 
-export function formatDate(date: string | Date): string {
+export function formatDate(date: string | Date | null | undefined): string {
+  if (!date) return 'N/A';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return 'N/A';
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(date));
+  }).format(d);
 }
 
-export function formatDateTime(date: string | Date): string {
+export function formatDateTime(date: string | Date | null | undefined): string {
+  if (!date) return 'N/A';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return 'N/A';
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(date));
+  }).format(d);
 }
 
-export function timeAgo(date: string | Date): string {
+export function timeAgo(date: string | Date | null | undefined): string {
+  if (!date) return 'N/A';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return 'N/A';
   const seconds = Math.floor(
-    (Date.now() - new Date(date).getTime()) / 1000
+    (Date.now() - d.getTime()) / 1000
   );
   const intervals: [number, string][] = [
     [31536000, 'year'],

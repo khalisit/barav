@@ -1,16 +1,24 @@
-export type UserStatus = 'active' | 'banned' | 'suspended';
-export type UserRole = 'super_admin' | 'admin' | 'moderator' | 'viewer' | 'user';
+export type UserStatus = 'active' | 'banned' | 'inactive' | 'deleted';
+
+
+export type AuthProvider = 'email' | 'gmail' | 'appleid';
 
 export interface User {
   id: string;
-  name: string;
+  fullName: string;
+  username: string;
+  phone: string | null;
   email: string;
+  provider: AuthProvider;
+  password?: string;
   avatarUrl: string | null;
-  role: UserRole;
   status: UserStatus;
+  profileLastChangedAt?: string | null;
+  currentSessionToken?: string | null;
   quizzesPlayed: number;
   quizzesWon: number;
   totalPoints: number;
+  skip: number;
   joinedAt: string;
   lastActiveAt: string;
 }
@@ -34,7 +42,7 @@ export interface Quiz {
   updatedAt: string;
 }
 
-export type QuestionType = 'multiple_choice' | 'true_false' | 'image' | 'audio';
+export type QuestionType = 'multiple_choice' | 'image';
 
 export interface QuestionOption {
   id: string;
@@ -59,8 +67,8 @@ export interface Category {
   id: string;
   name: string;
   description: string;
-  color: string;
-  icon: string;
+  color: string | null;
+  icon: string | null;
   quizCount: number;
   questionCount: number;
   createdAt: string;
@@ -86,14 +94,6 @@ export interface NotificationItem {
   createdAt: string;
 }
 
-export interface MediaItem {
-  id: string;
-  name: string;
-  type: 'image' | 'audio' | 'video';
-  url: string;
-  size: number;
-  uploadedAt: string;
-}
 
 export interface AuditLog {
   id: string;
@@ -114,4 +114,47 @@ export interface Report {
   format: 'pdf' | 'csv' | 'xlsx';
   createdAt: string;
   downloadUrl: string | null;
+}
+
+export type RevenueSource = 'subscription' | 'ads' | 'sponcers' | 'supporters';
+export type RevenueStatus = 'pending' | 'completed' | 'failed' | 'refunded';
+
+export interface Revenue {
+  id: string;
+  amount: number;
+  currency: string;
+  source: RevenueSource;
+  description: string;
+  date: string;
+  status: RevenueStatus;
+  userId?: string | null;
+  createdAt: string;
+}
+
+export interface Admin {
+  id: string;
+  username: string;
+  password?: string;
+  currentSessionToken?: string | null;
+  createdAt: string;
+}
+
+export interface Sponsor {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  videoUrl: string | null;
+  link: string | null;
+  createdAt: string;
+}
+
+export interface Expense {
+  id: string;
+  amount: number;
+  currency: string;
+  category: string;
+  description: string;
+  date: string;
+  status: string;
+  createdAt: string;
 }

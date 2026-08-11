@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Crown, Medal, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
@@ -16,28 +17,65 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { generateLeaderboard } from '@/lib/mock-data';
+import { api } from '@/lib/api-client';
 import type { LeaderboardEntry } from '@/lib/types';
 import { formatNumber, getInitials } from '@/lib/format';
+import { useLanguage } from '@/hooks/use-language';
 
 export default function LeaderboardPage() {
-  const [entries] = useState<LeaderboardEntry[]>(() => generateLeaderboard(50));
+  const { language } = useLanguage();
+  const { data: fetchResult, isLoading } = useQuery<{ data: any[] }>({
+    queryKey: ['users-leaderboard'],
+    queryFn: () => api.get('/users')
+  });
+
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'points' | 'won' | 'winRate'>('points');
 
+  const entries = useMemo(() => {
+    const users = Array.isArray(fetchResult?.data) ? fetchResult.data : Array.isArray(fetchResult) ? fetchResult : [];
+    
+    return users.map((u: any, index: number) => {
+      const quizzesPlayed = u.quizzesPlayed || 0;
+      const quizzesWon = u.quizzesWon || 0;
+      const winRate = quizzesPlayed > 0 ? (quizzesWon / quizzesPlayed) * 100 : 0;
+      
+      return {
+        id: u.id,
+        rank: index + 1, // Will be recalculated after sort
+        name: u.fullName || u.username || 'Unknown',
+        avatarUrl: u.avatarKey,
+        totalPoints: u.totalPoints || 0,
+        quizzesWon: quizzesWon,
+        quizzesPlayed: quizzesPlayed,
+        winRate: Number(winRate.toFixed(2)),
+      };
+    });
+  }, [fetchResult]);
+
   const filtered = useMemo(() => {
-    const result = entries.filter((e) =>
+    const result = entries.filter((e: any) =>
       e.name.toLowerCase().includes(search.toLowerCase())
     );
-    return result.sort((a, b) => {
+    const sorted = result.sort((a: any, b: any) => {
       if (sortBy === 'points') return b.totalPoints - a.totalPoints;
       if (sortBy === 'won') return b.quizzesWon - a.quizzesWon;
       return b.winRate - a.winRate;
     });
+    
+    // Update ranks after sorting
+    return sorted.map((item: any, index: number) => ({
+      ...item,
+      rank: index + 1
+    }));
   }, [entries, search, sortBy]);
 
   const top3 = filtered.slice(0, 3);
   const rest = filtered.slice(3);
+
+  if (isLoading) {
+    return <DashboardShell><PageHeader title="Leaderboard" description={language === 'ku' ? 'بارکردنی ڕیزبەندی...' : 'Loading rankings...'} /></DashboardShell>;
+  }
 
   return (
     <DashboardShell>
@@ -50,24 +88,24 @@ export default function LeaderboardPage() {
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex gap-3">
           <div className="space-y-1">
-            <Label>Search</Label>
+            <Label>{language === 'ku' ? 'گەڕان' : 'Search'}</Label>
             <Input
-              placeholder="Search players..."
+              placeholder={language === 'ku' ? 'گەڕان بەدوای یاریزاناندا...' : 'Search players...'}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full sm:w-64"
             />
           </div>
           <div className="space-y-1">
-            <Label>Sort by</Label>
+            <Label>{language === 'ku' ? 'ڕیزبەندی بەپێی' : 'Sort by'}</Label>
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
               <SelectTrigger className="w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="points">Total Points</SelectItem>
-                <SelectItem value="won">Quizzes Won</SelectItem>
-                <SelectItem value="winRate">Win Rate</SelectItem>
+                <SelectItem value="points">{language === 'ku' ? 'کۆی گشتی خاڵەکان' : 'Total Points'}</SelectItem>
+                <SelectItem value="won">{language === 'ku' ? 'کویزە براوەکان' : 'Quizzes Won'}</SelectItem>
+                <SelectItem value="winRate">{language === 'ku' ? 'ڕێژەی سەرکەوتن' : 'Win Rate'}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -101,7 +139,7 @@ export default function LeaderboardPage() {
                     {displayIndex === 0 && <Crown className="mb-1 h-5 w-5 text-warning" />}
                     <p className="font-semibold">{entry.name}</p>
                     <p className="mt-1 text-2xl font-bold text-primary">{formatNumber(entry.totalPoints)}</p>
-                    <p className="text-xs text-muted-foreground">points</p>
+                    <p className="text-xs text-muted-foreground">{language === 'ku' ? 'خاڵ' : 'points'}</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -112,10 +150,10 @@ export default function LeaderboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Full Rankings</CardTitle>
+          <CardTitle className="text-base">{language === 'ku' ? 'ڕیزبەندی تەواو' : 'Full Rankings'}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-1">
-          {rest.map((entry, i) => (
+          {rest.map((entry: any, i: number) => (
             <motion.div
               key={entry.id}
               initial={{ opacity: 0, x: -10 }}
@@ -133,20 +171,12 @@ export default function LeaderboardPage() {
               </Avatar>
               <div className="flex-1">
                 <p className="text-sm font-medium">{entry.name}</p>
-                <p className="text-xs text-muted-foreground">{entry.quizzesPlayed} quizzes played</p>
+                <p className="text-xs text-muted-foreground">{language === 'ku' ? 'یاری کردووە' : 'Played'}</p>
               </div>
               <div className="hidden gap-6 text-sm sm:flex">
                 <div className="text-center">
-                  <p className="font-semibold">{formatNumber(entry.totalPoints)}</p>
-                  <p className="text-xs text-muted-foreground">points</p>
-                </div>
-                <div className="text-center">
-                  <p className="font-semibold text-success">{entry.quizzesWon}</p>
-                  <p className="text-xs text-muted-foreground">won</p>
-                </div>
-                <div className="text-center">
-                  <p className="font-semibold">{entry.winRate}%</p>
-                  <p className="text-xs text-muted-foreground">win rate</p>
+                  <p className="font-semibold">{formatNumber(entry.totalPoints || 0)}</p>
+                  <p className="text-xs text-muted-foreground">{language === 'ku' ? 'خاڵ' : 'points'}</p>
                 </div>
               </div>
               <Trophy className="h-4 w-4 text-muted-foreground" />

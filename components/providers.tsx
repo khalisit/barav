@@ -6,8 +6,11 @@ import { useState, type ReactNode } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider } from '@/features/auth/components/auth-provider';
+import { LanguageProvider } from '@/components/language-provider';
+import { useLanguage } from '@/hooks/use-language';
 
 export function Providers({ children }: { children: ReactNode }) {
+  const { language } = useLanguage();
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -31,10 +34,12 @@ export function Providers({ children }: { children: ReactNode }) {
     >
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <TooltipProvider delayDuration={200}>
-            {children}
-            <Toaster richColors position="top-right" />
-          </TooltipProvider>
+          <LanguageProvider>
+            <TooltipProvider delayDuration={200}>
+              {children}
+              <Toaster richColors position="top-right" dir={language === 'ku' ? 'rtl' : 'ltr'} />
+            </TooltipProvider>
+          </LanguageProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>

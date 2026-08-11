@@ -1,13 +1,19 @@
 'use client';
 
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { navSections } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/components/auth-provider';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useLanguage } from '@/hooks/use-language';
+
+const getNavKey = (label: string) => {
+  if (label === 'Revenue & Expenses') return 'nav.revenue';
+  return 'nav.' + label.toLowerCase().replace(' ', '-');
+};
 
 interface SidebarProps {
   onNavigate?: () => void;
@@ -15,37 +21,47 @@ interface SidebarProps {
 
 export function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname();
-  const { hasPermission } = useAuth();
+  const { t, language } = useLanguage();
+  const activeRef = useRef<HTMLAnchorElement>(null);
+
+  useLayoutEffect(() => {
+    if (activeRef.current) {
+      activeRef.current.scrollIntoView({
+        behavior: 'auto',
+        block: 'center',
+      });
+    }
+  }, [pathname]);
 
   return (
-    <div className="flex h-full flex-col border-r border-sidebar-border bg-sidebar">
+    <div className="flex h-full flex-col border-e border-sidebar-border bg-sidebar" dir={language === 'ku' ? 'rtl' : 'ltr'}>
       <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-6">
         <Image
           src="/logo.png"
           alt="Barav Quiz"
           width={36}
           height={36}
-          className="rounded-lg object-cover"
+          className="rounded-md object-cover"
         />
         <div className="flex flex-col">
           <span className="text-sm font-bold tracking-tight text-sidebar-foreground">
             Barav Quiz
           </span>
-          <span className="text-[11px] text-muted-foreground">Admin Panel</span>
+          <span className="text-[11px] text-muted-foreground">
+            {language === 'ku' ? 'پەنێڵی بەڕێوەبەر' : 'Admin Panel'}
+          </span>
         </div>
       </div>
 
-      <ScrollArea className="flex-1 px-3 py-4">
+      <ScrollArea className="flex-1 px-3 py-4" dir={language === 'ku' ? 'rtl' : 'ltr'}>
         <nav className="space-y-6">
           {navSections.map((section) => {
-            const visibleItems = section.items.filter(
-              (item) => !item.permission || hasPermission(item.permission)
-            );
+            const visibleItems = section.items;
             if (visibleItems.length === 0) return null;
             return (
               <div key={section.label}>
                 <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {section.label}
+                  {t('nav.' + section.label.toLowerCase())}
                 </p>
                 <div className="space-y-0.5">
                   {visibleItems.map((item) => {
@@ -57,9 +73,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                       <Link
                         key={item.href}
                         href={item.href}
+                        ref={isActive ? activeRef : null}
                         onClick={onNavigate}
                         className={cn(
-                          'group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                          'group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150 ease-out active:scale-[0.96]',
                           isActive
                             ? 'text-primary'
                             : 'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -80,9 +97,9 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                               : 'text-muted-foreground group-hover:text-foreground'
                           )}
                         />
-                        <span className="relative">{item.label}</span>
+                        <span className="relative">{t(getNavKey(item.label))}</span>
                         {item.badge && (
-                          <span className="relative ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                          <span className="relative ms-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
                             {item.badge}
                           </span>
                         )}
@@ -98,9 +115,9 @@ export function Sidebar({ onNavigate }: SidebarProps) {
 
       <div className="border-t border-sidebar-border p-4">
         <div className="rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 p-3">
-          <p className="text-xs font-semibold text-foreground">Barav Quiz Pro</p>
+          <p className="text-xs font-semibold text-foreground">Barav Quiz</p>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Enterprise plan active
+            {language === 'ku' ? 'دڵخۆش بە لەگەڵمان' : 'Be Happy With Us'}
           </p>
         </div>
       </div>

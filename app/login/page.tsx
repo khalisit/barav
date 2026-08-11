@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
-import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { User, Lock, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import {
   Card,
@@ -22,7 +23,10 @@ import { loginSchema, type LoginFormValues } from '@/features/auth/schemas';
 import { useLogin } from '@/features/auth/hooks/use-auth-mutations';
 import { useAuth } from '@/features/auth/components/auth-provider';
 
+import { useLanguage } from '@/hooks/use-language';
+
 export default function LoginPage() {
+  const { language } = useLanguage();
   const { isAuthenticated, hasHydrated } = useAuth();
   const router = useRouter();
   const login = useLogin();
@@ -37,7 +41,7 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { username: '', password: '' },
   });
 
   const onSubmit = (values: LoginFormValues) => {
@@ -79,18 +83,17 @@ export default function LoginPage() {
           className="relative space-y-4"
         >
           <h1 className="text-4xl font-bold leading-tight">
-            Manage your quiz platform with confidence.
+            {language === 'ku' ? 'پلاتفۆرمی کویزەکانت بە متمانەوە بەڕێوەبەرە.' : 'Manage your quiz platform with confidence.'}
           </h1>
           <p className="max-w-md text-lg text-primary-foreground/80">
-            Monitor users, quizzes, tournaments, and revenue — all from one
-            powerful, beautifully designed dashboard.
+            {language === 'ku' ? 'چاودێری بەکارهێنەران، کویزەکان، پاڵەوانێتییەکان و داهاتەکان بکە — هەمووی لە یەک داشبۆردی بەهێز و جوانەوە.' : 'Monitor users, quizzes, tournaments, and revenue — all from one powerful, beautifully designed dashboard.'}
           </p>
         </motion.div>
         <div className="relative flex gap-8">
           {[
-            ['12K+', 'Active users'],
-            ['850+', 'Quizzes created'],
-            ['99.9%', 'Uptime'],
+            ['12K+', language === 'ku' ? 'بەکارهێنەری چالاک' : 'Active users'],
+            ['850+', language === 'ku' ? 'کویزی دروستکراو' : 'Quizzes created'],
+            ['99.9%', language === 'ku' ? 'کاتی کارکردن' : 'Uptime'],
           ].map(([stat, label]) => (
             <div key={label}>
               <p className="text-2xl font-bold">{stat}</p>
@@ -119,40 +122,39 @@ export default function LoginPage() {
           </div>
           <Card>
             <CardHeader className="space-y-1">
-              <CardTitle className="text-2xl">Welcome back</CardTitle>
+              <CardTitle className="text-2xl">{language === 'ku' ? 'بەخێربێیتەوە' : 'Welcome back'}</CardTitle>
               <CardDescription>
-                Sign in to your admin account to continue
+                {language === 'ku' ? 'چوونەژوورەوە بۆ هەژماری بەڕێوەبەر بۆ بەردەوامبوون' : 'Sign in to your admin account to continue'}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="username">{language === 'ku' ? 'ناوی بەکارهێنەر' : 'Username'}</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      id="email"
-                      type="email"
-                      placeholder="admin@baravquiz.com"
-                      className="pl-9"
-                      {...register('email')}
+                      id="username"
+                      type="text"
+                      placeholder="admin"
+                      className="ps-9"
+                      {...register('username')}
                     />
                   </div>
-                  {errors.email && (
+                  {errors.username && (
                     <p className="text-xs text-destructive">
-                      {errors.email.message}
+                      {errors.username.message}
                     </p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">{language === 'ku' ? 'وشەی نهێنی' : 'Password'}</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
+                    <PasswordInput
                       id="password"
-                      type="password"
                       placeholder="••••••••"
-                      className="pl-9"
+                      className="ps-9"
                       {...register('password')}
                     />
                   </div>
@@ -168,18 +170,16 @@ export default function LoginPage() {
                   disabled={login.isPending}
                 >
                   {login.isPending ? (
-                    'Signing in...'
+                    language === 'ku' ? 'چوونەژوورەوە...' : 'Signing in...'
                   ) : (
                     <>
-                      Sign in
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                      {language === 'ku' ? 'چوونەژوورەوە' : 'Sign in'}
+                      <ArrowRight className="ms-2 h-4 w-4 rtl:rotate-180" />
                     </>
                   )}
                 </Button>
               </form>
-              <p className="mt-4 text-center text-xs text-muted-foreground">
-                Demo credentials: admin@baravquiz.com / password123
-              </p>
+
             </CardContent>
           </Card>
         </motion.div>
