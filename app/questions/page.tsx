@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, Pencil, Trash2, Plus } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable } from '@/components/shared/data-table';
@@ -47,40 +47,42 @@ export default function QuestionsPage() {
     () => [
       {
         accessorKey: 'text',
-        header: 'Question',
+        header: language === 'ku' ? 'پرسیار' : 'Question',
         cell: ({ row }) => (
           <p className="max-w-md truncate font-medium">{row.original.text}</p>
         ),
       },
       {
+        accessorKey: 'categoryName',
+        header: language === 'ku' ? 'جۆری بابەت' : 'Category',
+        cell: ({ row }) => {
+          const catName = (row.original as any).categoryName;
+          if (!catName) return <span className="text-muted-foreground text-xs">—</span>;
+          return <Badge variant="secondary" className="text-xs">{catName}</Badge>;
+        },
+      },
+      {
         accessorKey: 'type',
-        header: 'Type',
+        header: language === 'ku' ? 'جۆر' : 'Type',
         cell: ({ row }) => (
           <Badge variant="outline" className="capitalize">
-            {row.original.type.replace('_', ' ')}
+            {row.original.type === 'multiple_choice' ? (language === 'ku' ? 'هەڵبژاردن' : 'Multiple Choice') : (language === 'ku' ? 'وێنە' : 'Image')}
           </Badge>
         ),
       },
       {
         accessorKey: 'points',
-        header: 'Points',
-        cell: ({ row }) => <span className="text-sm">{row.original.points}</span>,
+        header: language === 'ku' ? 'خاڵ' : 'Points',
+        cell: ({ row }) => <span className="text-sm font-bold text-amber-600">{row.original.points}</span>,
       },
       {
         accessorKey: 'timer',
-        header: 'Timer',
-        cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.timer}s</span>,
-      },
-      {
-        accessorKey: 'quizId',
-        header: 'Quiz',
-        cell: ({ row }) => (
-          <Badge variant="secondary" className="text-xs">{row.original.quizId}</Badge>
-        ),
+        header: language === 'ku' ? 'کات' : 'Timer',
+        cell: ({ row }) => <span className="text-sm font-bold text-blue-600">{row.original.timer}{language === 'ku' ? 'چ' : 's'}</span>,
       },
       {
         accessorKey: 'createdAt',
-        header: 'Created',
+        header: language === 'ku' ? 'دروستکراوە' : 'Created',
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground">{formatDate(row.original.createdAt)}</span>
         ),
@@ -88,26 +90,11 @@ export default function QuestionsPage() {
       {
         id: 'actions',
         cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <a href={`/questions/${row.original.id}`}>
-                  <Pencil className="me-2 h-4 w-4" /> {language === 'ku' ? 'دەستکاری' : 'Edit'}
-                </a>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setDeleteTarget(row.original)}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="me-2 h-4 w-4" /> {language === 'ku' ? 'سڕینەوە' : 'Delete'}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button variant="outline" size="sm" asChild className="rounded-full">
+            <a href={`/questions/${row.original.id}`}>
+              {language === 'ku' ? 'بینین' : 'View'}
+            </a>
+          </Button>
         ),
       },
     ],
@@ -115,15 +102,15 @@ export default function QuestionsPage() {
   );
 
   if (isLoading) {
-    return <DashboardShell><PageHeader title="Questions" description="Loading questions..." /></DashboardShell>;
+    return <DashboardShell><PageHeader title={language === 'ku' ? 'پرسیارەکان' : 'Questions'} description={language === 'ku' ? 'بارکردنی پرسیارەکان...' : 'Loading questions...'} /></DashboardShell>;
   }
 
   return (
     <DashboardShell>
       <PageHeader
-        title="Questions"
-        description="Manage quiz questions across all quizzes"
-        breadcrumbs={[{ label: 'Home', href: '/dashboard' }, { label: 'Questions' }]}
+        title={language === 'ku' ? 'پرسیارەکان' : 'Questions'}
+        description={language === 'ku' ? 'سەرجەم پرسیارەکانی ناو سیستەمەکە' : 'Manage quiz questions across all quizzes'}
+        breadcrumbs={[{ label: language === 'ku' ? 'سەرەکی' : 'Home', href: '/dashboard' }, { label: language === 'ku' ? 'پرسیارەکان' : 'Questions' }]}
       />
       <DataTable
         columns={columns}
@@ -131,9 +118,6 @@ export default function QuestionsPage() {
         searchKey="text"
         searchPlaceholder={language === 'ku' ? 'گەڕانی پرسیارەکان...' : 'Search questions...'}
         exportFilename="questions"
-        onBulkDelete={(rows) => {
-          rows.forEach((r) => deleteMutation.mutate(r.id));
-        }}
       />
       <ConfirmDialog
         open={!!deleteTarget}

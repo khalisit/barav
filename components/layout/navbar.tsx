@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, Menu, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -24,6 +23,7 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { ThemeSwitcher } from '@/components/shared/theme-switcher';
 import { LanguageSwitcher } from '@/components/shared/language-switcher';
 import { useLanguage } from '@/hooks/use-language';
+import { usePresence } from '@/hooks/use-presence';
 import { useAuth } from '@/features/auth/components/auth-provider';
 import { useLogout } from '@/features/auth/hooks/use-auth-mutations';
 import { getInitials } from '@/lib/format';
@@ -45,6 +45,8 @@ export function Navbar() {
   const { t, language } = useLanguage();
   const [commandOpen, setCommandOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const { onlineCount } = usePresence();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -94,23 +96,24 @@ export function Navbar() {
           </Button>
           <ThemeSwitcher />
           <LanguageSwitcher />
+          <div className="flex h-8 items-center gap-2 rounded-full bg-success/10 px-3 text-success">
+            <div className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75"></span>
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-success"></span>
+            </div>
+            <span className="text-sm font-semibold">{onlineCount}</span>
+            <span className="text-xs font-medium">
+              {language === 'ku' ? 'ئۆنلاین' : 'Online'}
+            </span>
+          </div>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="ms-1 flex items-center gap-3 rounded-md px-3 py-1 transition-colors hover:bg-accent" aria-label="User menu">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.name ?? ''} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                    {user ? getInitials(user.name) : 'AD'}
-                  </AvatarFallback>
+              <button className="ms-1 flex items-center gap-2 rounded-full outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-primary" aria-label="User menu">
+                <Avatar className="h-8 w-8 border border-border">
+                  <AvatarImage src={user?.avatarUrl || undefined} alt={user?.name} />
+                  <AvatarFallback>{getInitials(user?.name || '')}</AvatarFallback>
                 </Avatar>
-                <div className="hidden text-start lg:block">
-                  <p className="text-sm font-semibold leading-tight text-foreground">
-                    {user?.name ?? (language === 'ku' ? 'ئەدمین' : 'Admin')}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground leading-none mt-0.5">
-                    {language === 'ku' ? 'بەڕێوبەر' : 'Manager'}
-                  </p>
-                </div>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -118,9 +121,6 @@ export function Navbar() {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => router.push('/profile')}>
                 {t('account.profile')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push('/settings')}>
-                {t('account.settings')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

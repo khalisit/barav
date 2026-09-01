@@ -13,6 +13,7 @@ import {
   TrendingUp,
   TrendingDown,
   Trophy,
+  Gift,
 } from 'lucide-react';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { PageHeader } from '@/components/shared/page-header';
@@ -31,6 +32,42 @@ import { useAuth } from '@/features/auth/components/auth-provider';
 
 import { api } from '@/lib/api-client';
 
+const translateAction = (action: string, language: string) => {
+  if (language !== 'ku') return action.replace('_', ' ');
+  if (action === 'CREATE') return 'دروستکردن';
+  if (action === 'UPDATE') return 'نوێکردنەوە';
+  if (action === 'DELETE') return 'سڕینەوە';
+  if (action === 'PUBLISH') return 'بڵاوکردنەوە';
+  if (action === 'ARCHIVE') return 'ئەرشیفکردن';
+  if (action === 'UPLOAD_AVATAR' || action === 'UPDATE_AVATAR') return 'گۆڕینی ئەڤەتار';
+  if (action === 'CREATE_RECEIPT') return 'دروستکردنی پسوولە';
+  if (action === 'DELETE_RECEIPT') return 'سڕینەوەی پسوولە';
+  if (action === 'UPLOAD_MEDIA') return 'بارکردنی مێدیا';
+  if (action === 'DELETE_MEDIA') return 'سڕینەوەی مێدیا';
+  if (action.startsWith('UPDATE_STATUS')) {
+    const status = action.split('(')[1]?.replace(')', '');
+    const statusKu = status === 'banned' ? 'بلۆککرا' : status === 'active' ? 'چالاککرا' : status === 'deleted' ? 'سڕایەوە' : status;
+    return `گۆڕینی دۆخ (${statusKu})`;
+  }
+  return action.replace('_', ' ');
+};
+
+const translateResource = (resource: string, language: string) => {
+  if (language !== 'ku') return resource;
+  const map: Record<string, string> = {
+    'User': 'بەکارهێنەر',
+    'Quiz': 'کویز',
+    'Question': 'پرسیار',
+    'Category': 'هاوپۆل',
+    'Sponsor': 'سپۆنسەر',
+    'Admin': 'ئەدمین',
+    'Notification': 'ئاگادارکەرەوە',
+    'Receipt': 'پسوولە',
+    'Storage': 'کۆگا',
+  };
+  return map[resource] || resource;
+};
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const { t, language } = useLanguage();
@@ -46,11 +83,24 @@ export default function DashboardPage() {
 
   const { data: leaderboardRes } = useQuery({
     queryKey: ['dashboard-leaderboard'],
-    queryFn: () => api.get<{ data: any[] }>('/leaderboard-entries'),
+    queryFn: () => api.get<{ data: any[] }>('/users'),
   });
 
   const auditLogs = useMemo(() => Array.isArray(auditLogsRes?.data) ? auditLogsRes.data : [], [auditLogsRes]);
-  const leaderboard = useMemo(() => Array.isArray(leaderboardRes?.data) ? leaderboardRes.data : [], [leaderboardRes]);
+  const leaderboard = useMemo(() => {
+    const raw = Array.isArray(leaderboardRes?.data) ? leaderboardRes.data : [];
+    return [...raw]
+      .sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0))
+      .map((u, i) => ({
+        id: u.id,
+        rank: i + 1,
+        name: u.fullName || u.username,
+        avatarUrl: u.avatarKey,
+        totalPoints: u.totalPoints || 0,
+        quizzesWon: u.quizzesWon || 0,
+        quizzesPlayed: u.quizzesPlayed || 0,
+      }));
+  }, [leaderboardRes]);
 
   if (isLoading || !data) {
     return (
@@ -72,16 +122,62 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <StatCard title={t('stat.totalUsers')} value={data.stats.totalUsers} icon={Users} change={data.stats.totalUsersTrend} delay={0} />
         <StatCard title={t('stat.onlineNow')} value={data.stats.onlineUsers} icon={Wifi} change={data.stats.onlineUsersTrend} accent="success" delay={0.05} />
-        <StatCard title={t('stat.runningQuizzes')} value={data.stats.runningQuizzes} icon={PlayCircle} change={data.stats.runningQuizzesTrend} accent="warning" delay={0.1} />
-        <StatCard title={t('stat.scheduled')} value={data.stats.scheduledQuizzes} icon={CalendarClock} change={data.stats.scheduledQuizzesTrend} delay={0.15} />
-        <StatCard title={t('stat.finished')} value={data.stats.finishedQuizzes} icon={CheckCircle2} change={data.stats.finishedQuizzesTrend} accent="success" delay={0.2} />
+        <StatCard title={language === 'ku' ? 'دەستپێکردن' : 'Running'} value={data.stats.runningQuizzes} icon={PlayCircle} change={data.stats.runningQuizzesTrend} accent="warning" delay={0.1} />
+        <StatCard title={language === 'ku' ? 'ئامادەیە' : 'Ready'} value={data.stats.scheduledQuizzes} icon={CalendarClock} change={data.stats.scheduledQuizzesTrend} delay={0.15} />
+        <StatCard title={language === 'ku' ? 'کویزی ڕاستەوخۆ' : 'Live'} value={data.stats.liveQuizzes} icon={CheckCircle2} change={data.stats.liveQuizzesTrend} accent="success" delay={0.2} />
         <StatCard title={t('stat.totalQuestions')} value={data.stats.totalQuestions} icon={HelpCircle} change={data.stats.totalQuestionsTrend} delay={0.25} />
         <StatCard title={t('stat.totalAnswers')} value={data.stats.totalAnswers} icon={MessageSquare} change={data.stats.totalAnswersTrend} accent="info" delay={0.3} />
-        <StatCard title={t('stat.dailyRevenue')} value={data.stats.dailyRevenue} icon={DollarSign} format="currency" change={data.stats.dailyRevenueTrend} accent="success" delay={0.35} />
-        <StatCard title={t('stat.monthlyRevenue')} value={data.stats.monthlyRevenue} icon={TrendingUp} format="currency" change={data.stats.monthlyRevenueTrend} accent="success" delay={0.4} />
-        <StatCard title={language === 'ku' ? 'خەرجی ڕۆژانە' : 'Daily Expenses'} value={data.stats.dailyExpense} icon={DollarSign} format="currency" change={data.stats.dailyExpenseTrend} accent="destructive" delay={0.42} />
-        <StatCard title={language === 'ku' ? 'خەرجی مانگانە' : 'Monthly Expenses'} value={data.stats.monthlyExpense} icon={TrendingDown} format="currency" change={data.stats.monthlyExpenseTrend} accent="destructive" delay={0.45} />
+        <StatCard
+          title={t('stat.dailyRevenue')}
+          value={`$${Math.round(data.stats.dailyRevenueUsd).toLocaleString()} / ${Math.round(data.stats.dailyRevenueIqd).toLocaleString()} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
+          icon={DollarSign}
+          format="raw"
+          change={data.stats.dailyRevenueTrend}
+          accent="success"
+          delay={0.35}
+        />
+        <StatCard
+          title={t('stat.monthlyRevenue')}
+          value={`$${Math.round(data.stats.monthlyRevenueUsd).toLocaleString()} / ${Math.round(data.stats.monthlyRevenueIqd).toLocaleString()} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
+          icon={TrendingUp}
+          format="raw"
+          change={data.stats.monthlyRevenueTrend}
+          accent="success"
+          delay={0.4}
+        />
+        <StatCard
+          title={language === 'ku' ? 'خەرجی ڕۆژانە' : 'Daily Expenses'}
+          value={`$${Math.round(data.stats.dailyExpenseUsd).toLocaleString()} / ${Math.round(data.stats.dailyExpenseIqd).toLocaleString()} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
+          icon={DollarSign}
+          format="raw"
+          change={data.stats.dailyExpenseTrend}
+          accent="destructive"
+          delay={0.42}
+        />
+        <StatCard
+          title={language === 'ku' ? 'خەرجی مانگانە' : 'Monthly Expenses'}
+          value={`$${Math.round(data.stats.monthlyExpenseUsd).toLocaleString()} / ${Math.round(data.stats.monthlyExpenseIqd).toLocaleString()} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
+          icon={TrendingDown}
+          format="raw"
+          change={data.stats.monthlyExpenseTrend}
+          accent="destructive"
+          delay={0.45}
+        />
         <StatCard title={t('stat.totalWinners')} value={data.stats.totalWinners} icon={Trophy} change={data.stats.totalWinnersTrend} accent="warning" delay={0.48} />
+        <StatCard
+          title={language === 'ku' ? 'خەڵاتی دراو' : 'Paid Rewards'}
+          value={`${Math.round(data.stats.paidRewards).toLocaleString('en-US')} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
+          icon={Gift}
+          accent="success"
+          delay={0.5}
+        />
+        <StatCard
+          title={language === 'ku' ? 'خەڵاتی نەدراو' : 'Unclaimed Rewards'}
+          value={`${Math.round(data.stats.unclaimedRewards).toLocaleString('en-US')} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
+          icon={Gift}
+          accent="warning"
+          delay={0.52}
+        />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -143,10 +239,10 @@ export default function DashboardPage() {
                       {getInitials(item.userName || 'U')}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 text-sm">
+                  <div className="flex-1 text-sm text-start">
                     <span className="font-medium text-foreground">{item.userName || 'System'}</span>{' '}
-                    <span className="text-muted-foreground">{item.action.replace('_', ' ')}</span>{' '}
-                    {item.resource && <span className="font-medium text-foreground">{item.resource}</span>}
+                    <span className="text-muted-foreground">{translateAction(item.action, language)}</span>{' '}
+                    {item.resource && <span className="font-medium text-foreground">{translateResource(item.resource, language)}</span>}
                   </div>
                   <span className="text-xs text-muted-foreground">{timeAgo(new Date(item.createdAt))}</span>
                 </div>

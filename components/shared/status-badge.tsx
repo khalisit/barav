@@ -2,6 +2,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/hooks/use-language';
 
 type StatusVariant = 'default' | 'success' | 'warning' | 'destructive' | 'info' | 'muted';
 
@@ -21,13 +22,30 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, variant, className }: StatusBadgeProps) {
+  const { language } = useLanguage();
   const v = variant ?? mapStatusToVariant(status);
+  
+  let displayText = status.replace('_', ' ');
+  if (language === 'ku') {
+    const s = status.toLowerCase();
+    if (s === 'running') displayText = 'دەکرێت بەشداربیت';
+    else if (s === 'ready') displayText = 'ئامادەیە و داخراوە';
+    else if (s === 'live') displayText = 'ڕاستەوخۆ (یاریەکە)';
+    else if (s === 'draft') displayText = 'ڕەشنووس';
+    else if (s === 'published') displayText = 'بڵاوکراوەتەوە';
+    else if (s === 'archived') displayText = 'ئەرشیڤ کراوە';
+    else if (s === 'waiting') displayText = 'لە چاوەڕوانیدایە';
+    else if (s === 'finished') displayText = 'کۆتایی پێهاتوو';
+    else if (s === 'cancelled') displayText = 'هەڵوەشێنراوەتەوە';
+    else displayText = status.replace('_', ' ');
+  }
+
   return (
     <Badge
       variant="outline"
       className={cn('font-medium capitalize', variantStyles[v], className)}
     >
-      {status.replace('_', ' ')}
+      {displayText}
     </Badge>
   );
 }
@@ -35,15 +53,16 @@ export function StatusBadge({ status, variant, className }: StatusBadgeProps) {
 function mapStatusToVariant(status: string): StatusVariant {
   const map: Record<string, StatusVariant> = {
     active: 'success',
+    draft: 'default',
     published: 'success',
-    running: 'info',
-    completed: 'success',
-    finished: 'muted',
-    draft: 'muted',
-    scheduled: 'warning',
+    running: 'success',
+    ready: 'warning',
+    live: 'info',
     upcoming: 'info',
     registration: 'info',
     waiting: 'warning',
+    finished: 'success',
+    cancelled: 'destructive',
     archived: 'muted',
     banned: 'destructive',
     inactive: 'muted',
@@ -52,5 +71,5 @@ function mapStatusToVariant(status: string): StatusVariant {
     failed: 'destructive',
     generated: 'success',
   };
-  return map[status] ?? 'default';
+  return map[status.toLowerCase()] ?? 'default';
 }

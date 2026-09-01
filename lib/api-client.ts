@@ -29,6 +29,9 @@ export class ApiError extends Error {
 }
 
 let accessToken: string | null = null;
+if (typeof window !== 'undefined') {
+  accessToken = localStorage.getItem('barav-access-token');
+}
 let onUnauthorized: (() => void) | null = null;
 
 export function setAccessToken(token: string | null) {
@@ -66,6 +69,8 @@ client.interceptors.response.use(
   async (error) => {
     const status = error?.response?.status;
     const message =
+      error?.response?.data?.details ??
+      error?.response?.data?.error ??
       error?.response?.data?.message ??
       error?.message ??
       'An unexpected error occurred';
@@ -100,7 +105,7 @@ export const api = {
     apiRequest<T>({ method: 'PUT', url, data }),
   patch: <T>(url: string, data?: unknown) =>
     apiRequest<T>({ method: 'PATCH', url, data }),
-  delete: <T>(url: string) => apiRequest<T>({ method: 'DELETE', url }),
+  delete: <T>(url: string, data?: unknown) => apiRequest<T>({ method: 'DELETE', url, data }),
 };
 
 export default client;

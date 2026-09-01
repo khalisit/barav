@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,6 +52,7 @@ const notificationSchema = z.object({
   title: z.string().min(3, 'Title is too short'),
   message: z.string().min(5, 'Message is too short'),
   type: z.enum(['info', 'success', 'warning', 'error']),
+  userId: z.string().optional().nullable(),
 });
 
 type NotificationFormValues = z.infer<typeof notificationSchema>;
@@ -59,7 +61,7 @@ export default function NotificationsPage() {
   const { language } = useLanguage();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  
+
   const { data: notificationsResult, isLoading } = useQuery<{ data: NotificationItem[] }>({
     queryKey: ['notifications'],
     queryFn: () => api.get('/notifications'),
@@ -69,9 +71,23 @@ export default function NotificationsPage() {
     return Array.isArray(notificationsResult?.data)
       ? notificationsResult.data
       : Array.isArray(notificationsResult)
-      ? notificationsResult
-      : [];
+        ? notificationsResult
+        : [];
   }, [notificationsResult]);
+
+  const { data: usersResult } = useQuery<{ data: any[] }>({
+    queryKey: ['users'],
+    queryFn: () => api.get('/users'),
+  });
+
+  const usersList = useMemo(() => {
+    return Array.isArray(usersResult?.data) ? usersResult.data : [];
+  }, [usersResult]);
+
+  const [activeTab, setActiveTab] = useState('general');
+  const [notificationToDelete, setNotificationToDelete] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   const [dateFilter, setDateFilter] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
@@ -82,6 +98,7 @@ export default function NotificationsPage() {
       title: '',
       message: '',
       type: 'info',
+      userId: null,
     }
   });
 
@@ -97,18 +114,62 @@ export default function NotificationsPage() {
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/notifications/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success(language === 'ku' ? 'ئاگادارییەکە سڕایەوە' : 'Notification deleted');
+    }
+  });
+
   const filtered = useMemo(() => {
-    if (!dateFilter) return notifications;
-    return notifications.filter((n: any) => {
-      if (!n.createdAt) return true;
-      const notifDate = new Date(n.createdAt).toISOString().split('T')[0];
-      return notifDate === dateFilter;
-    });
-  }, [notifications, dateFilter]);
+    let result = notifications;
+    if (activeTab === 'general') {
+      result = result.filter((n: any) => !n.userId);
+    } else {
+      result = result.filter((n: any) => !!n.userId);
+    }
+    
+    if (dateFilter) {
+      result = result.filter((n: any) => {
+        if (!n.createdAt) return true;
+        const notifDate = new Date(n.createdAt).toISOString().split('T')[0];
+        return notifDate === dateFilter;
+      });
+    }
+    return result;
+  }, [notifications, dateFilter, activeTab]);
 
   const onSubmit = (values: NotificationFormValues) => {
     createMutation.mutate(values);
   };
+
+  const toggleSelection = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === filtered.length && filtered.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((n: any) => n.id)));
+    }
+  };
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(ids.map(id => api.delete(`/notifications/${id}`)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      setSelectedIds(new Set());
+      setShowBulkDeleteConfirm(false);
+      toast.success(language === 'ku' ? 'ئاگادارییە دیاریکراوەکان سڕانەوە' : 'Selected notifications deleted');
+    }
+  });
 
   if (isLoading) {
     return (
@@ -135,23 +196,57 @@ export default function NotificationsPage() {
         }
       />
 
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-6">
+        <TabsList className="grid w-full max-w-[400px] grid-cols-2">
+          <TabsTrigger value="general">{language === 'ku' ? 'گشتی' : 'General'}</TabsTrigger>
+          <TabsTrigger value="specific">{language === 'ku' ? 'تایبەت' : 'Specific'}</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <div className="mb-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="text-sm text-muted-foreground font-medium">
-          {language === 'ku' ? 'فلتەرکردن بەپێی بەروار:' : 'Filter by date:'}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="text-sm text-muted-foreground font-medium">
+            {language === 'ku' ? 'فلتەرکردن بەپێی بەروار:' : 'Filter by date:'}
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="w-auto"
+            />
+            {dateFilter && (
+              <Button variant="ghost" onClick={() => setDateFilter('')}>
+                {language === 'ku' ? 'لابردنی فلتەر' : 'Clear filter'}
+              </Button>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Input 
-            type="date" 
-            value={dateFilter} 
-            onChange={(e) => setDateFilter(e.target.value)} 
-            className="w-auto"
-          />
-          {dateFilter && (
-            <Button variant="ghost" onClick={() => setDateFilter('')}>
-              {language === 'ku' ? 'لابردنی فلتەر' : 'Clear filter'}
-            </Button>
-          )}
-        </div>
+
+        {filtered.length > 0 && (
+          <div className="flex items-center gap-3 bg-muted/30 px-3 py-1.5 rounded-lg border">
+            <Checkbox 
+              checked={selectedIds.size === filtered.length && filtered.length > 0}
+              onCheckedChange={toggleAll}
+              id="select-all"
+            />
+            <Label htmlFor="select-all" className="text-sm cursor-pointer">
+              {language === 'ku' ? 'دیاریکردنی هەمووی' : 'Select All'}
+            </Label>
+            
+            {selectedIds.size > 0 && (
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                className="h-7 px-3 text-xs ms-2"
+                onClick={() => setShowBulkDeleteConfirm(true)}
+              >
+                <Trash2 className="h-3 w-3 me-1" />
+                {language === 'ku' ? `سڕینەوە (${selectedIds.size})` : `Delete (${selectedIds.size})`}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -172,13 +267,31 @@ export default function NotificationsPage() {
                 className="group relative rounded-xl border p-4 sm:p-5 transition-all duration-300 hover:shadow-md bg-card/50 hover:bg-card border-border/40"
               >
                 <div className="flex items-start gap-4">
+                  <div className="pt-2.5">
+                    <Checkbox
+                      checked={selectedIds.has(notif.id)}
+                      onCheckedChange={() => toggleSelection(notif.id)}
+                    />
+                  </div>
                   <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', colorClass)}>
                     <Bell className="h-5 w-5" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-bold">{notif.title}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold">{notif.title}</p>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setNotificationToDelete(notif.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                     <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{notif.message}</p>
-                    <p className="mt-2 text-xs text-muted-foreground font-medium">{timeAgo(notif.createdAt)}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground font-medium">{timeAgo(notif.createdAt)}</p>
+                      {notif.username && (
+                        <Badge variant="outline" className="text-xs bg-muted/50">
+                          👤 {notif.username}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -226,6 +339,23 @@ export default function NotificationsPage() {
               </Select>
             </div>
 
+            <div className="space-y-2">
+              <Label>{language === 'ku' ? 'بۆ یوزەری (تایبەت)' : 'Target User (Specific)'}</Label>
+              <Select onValueChange={(v) => setValue('userId', v === 'none' ? null : v)} value={watch('userId') || 'none'}>
+                <SelectTrigger>
+                  <SelectValue placeholder={language === 'ku' ? 'بۆ هەمووان (گشتی)' : 'For everyone (Global)'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{language === 'ku' ? 'بۆ هەمووان (Global)' : 'For everyone (Global)'}</SelectItem>
+                  {usersList.map((u: any) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.username} ({u.fullName})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
                 {language === 'ku' ? 'پاشگەزبوونەوە' : 'Cancel'}
@@ -239,6 +369,34 @@ export default function NotificationsPage() {
         </DialogContent>
       </Dialog>
 
+      <ConfirmDialog
+        open={!!notificationToDelete}
+        onOpenChange={(open) => !open && setNotificationToDelete(null)}
+        title={language === 'ku' ? 'سڕینەوەی ئاگاداری' : 'Delete Notification'}
+        description={language === 'ku' ? 'دڵنیایت لە سڕینەوەی ئەم ئاگادارییە؟' : 'Are you sure you want to delete this notification?'}
+        onConfirm={() => {
+          if (notificationToDelete) {
+            deleteMutation.mutate(notificationToDelete);
+            setNotificationToDelete(null);
+          }
+        }}
+        confirmLabel={language === 'ku' ? 'سڕینەوە' : 'Delete'}
+        cancelLabel={language === 'ku' ? 'پاشگەزبوونەوە' : 'Cancel'}
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={showBulkDeleteConfirm}
+        onOpenChange={setShowBulkDeleteConfirm}
+        title={language === 'ku' ? 'سڕینەوەی دیاریکراوەکان' : 'Delete Selected'}
+        description={language === 'ku' ? `دڵنیایت لە سڕینەوەی ئەم ${selectedIds.size} ئاگادارییە؟` : `Are you sure you want to delete ${selectedIds.size} notifications?`}
+        onConfirm={() => {
+          bulkDeleteMutation.mutate(Array.from(selectedIds));
+        }}
+        confirmLabel={language === 'ku' ? 'سڕینەوە' : 'Delete'}
+        cancelLabel={language === 'ku' ? 'پاشگەزبوونەوە' : 'Cancel'}
+        variant="destructive"
+      />
     </DashboardShell>
   );
 }

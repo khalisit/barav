@@ -128,15 +128,15 @@ export default function CategoriesPage() {
   };
 
   if (isLoading) {
-    return <DashboardShell><PageHeader title="Categories" description="Loading..." /></DashboardShell>;
+    return <DashboardShell><PageHeader title={language === 'ku' ? 'هاوپۆلەکان' : 'Categories'} description={language === 'ku' ? 'چاوەڕێبە...' : 'Loading...'} /></DashboardShell>;
   }
 
   return (
     <DashboardShell>
       <PageHeader
-        title="Categories"
-        description="Organize quizzes into categories"
-        breadcrumbs={[{ label: 'Home', href: '/dashboard' }, { label: 'Categories' }]}
+        title={language === 'ku' ? 'هاوپۆلەکان' : 'Categories'}
+        description={language === 'ku' ? 'بەڕێوەبردنی جۆری بابەت و هاوپۆلەکان' : 'Organize quizzes into categories'}
+        breadcrumbs={[{ label: language === 'ku' ? 'سەرەکی' : 'Home', href: '/dashboard' }, { label: language === 'ku' ? 'هاوپۆلەکان' : 'Categories' }]}
         actions={
           <Button onClick={openCreate}>
             <Plus className="me-2 h-4 w-4" /> {language === 'ku' ? 'زیادکردنی جۆری بابەت' : 'Add Category'}

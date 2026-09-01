@@ -28,7 +28,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
         if (parsed.state?.user) {
           setUser(parsed.state.user);
-          const token = sessionStorage.getItem('barav-access-token');
+          const token = localStorage.getItem('barav-access-token');
           if (token) setAccessToken(token);
         } else {
           setUser(null);

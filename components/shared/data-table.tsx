@@ -36,7 +36,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/shared/empty-state';
-import { exportToCsv, exportToExcel } from '@/lib/format';
+
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/hooks/use-language';
 
@@ -95,6 +95,9 @@ interface DataTableProps<TData, TValue> {
   onBulkDelete?: (rows: TData[]) => void;
   bulkActions?: (rows: TData[], clearSelection: () => void) => ReactNode;
   exportFilename?: string;
+  pageSize?: number;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
 export function DataTable<TData, TValue>({
@@ -167,13 +170,7 @@ export function DataTable<TData, TValue>({
 
   const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original);
 
-  const handleExportCsv = () => {
-    exportToCsv(exportFilename, data as unknown as Record<string, unknown>[]);
-  };
 
-  const handleExportExcel = () => {
-    exportToExcel(exportFilename, data as unknown as Record<string, unknown>[]);
-  };
 
   if (isLoading) {
     return (
@@ -214,16 +211,7 @@ export function DataTable<TData, TValue>({
           )}
           {toolbar}
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportCsv}>
-            <Download className="me-2 h-4 w-4" />
-            CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExportExcel}>
-            <Download className="me-2 h-4 w-4" />
-            Excel
-          </Button>
-        </div>
+
       </div>
 
       {selectedRows.length > 0 && (onBulkDelete || bulkActions) && (

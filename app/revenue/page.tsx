@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, Wallet, TrendingUp, TrendingDown, DollarSign, Receipt } from 'lucide-react';
+import { Plus, Pencil, Trash2, Wallet, TrendingUp, TrendingDown, DollarSign, Receipt, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { PageHeader } from '@/components/shared/page-header';
@@ -39,7 +39,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { api } from '@/lib/api-client';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatCurrency, formatDate, exportToPdf } from '@/lib/format';
 import type { Revenue, Expense } from '@/lib/types';
 import { toast } from 'sonner';
 import { useLanguage } from '@/hooks/use-language';
@@ -50,6 +50,7 @@ interface Transaction {
   title: string;
   category: string;
   amount: number;
+  currency: 'USD' | 'IQD';
   date: string;
   note: string | null;
   created_at: string;
@@ -105,6 +106,7 @@ export default function RevenueExpensesPage() {
       title: r.description || '',
       category: r.source,
       amount: r.amount,
+      currency: r.currency || 'USD',
       date: r.date,
       note: r.status,
       created_at: r.createdAt,
@@ -116,6 +118,7 @@ export default function RevenueExpensesPage() {
       title: e.description || '',
       category: e.category,
       amount: e.amount,
+      currency: e.currency || 'USD',
       date: e.date,
       note: e.status,
       created_at: e.createdAt,
@@ -130,11 +133,14 @@ export default function RevenueExpensesPage() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [filterType, setFilterType] = useState<'all' | TransactionType>('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const [formType, setFormType] = useState<TransactionType>('revenue');
   const [formTitle, setFormTitle] = useState('');
   const [formCategory, setFormCategory] = useState('');
   const [formAmount, setFormAmount] = useState('');
+  const [formCurrency, setFormCurrency] = useState<'USD' | 'IQD'>('USD');
   const [formDate, setFormDate] = useState('');
   const [formNote, setFormNote] = useState('');
 
@@ -157,19 +163,43 @@ export default function RevenueExpensesPage() {
     }
   };
 
-  const filtered = useMemo(
-    () => (filterType === 'all' ? transactions : transactions.filter((t) => t.type === filterType)),
-    [transactions, filterType]
-  );
+  const filtered = useMemo(() => {
+    let result = transactions;
+    if (filterType !== 'all') {
+      result = result.filter((t) => t.type === filterType);
+    }
+    if (startDate) {
+      result = result.filter((t) => t.date >= startDate);
+    }
+    if (endDate) {
+      result = result.filter((t) => t.date <= endDate);
+    }
+    return result;
+  }, [transactions, filterType, startDate, endDate]);
 
   const totals = useMemo(() => {
-    let revenue = 0;
-    let expense = 0;
+    let revenueUsd = 0;
+    let revenueIqd = 0;
+    let expenseUsd = 0;
+    let expenseIqd = 0;
     for (const t of transactions) {
-      if (t.type === 'revenue') revenue += Number(t.amount);
-      else expense += Number(t.amount);
+      const amt = Number(t.amount || 0);
+      if (t.type === 'revenue') {
+        if (t.currency === 'IQD') revenueIqd += amt;
+        else revenueUsd += amt;
+      } else {
+        if (t.currency === 'IQD') expenseIqd += amt;
+        else expenseUsd += amt;
+      }
     }
-    return { revenue, expense, net: revenue - expense };
+    return {
+      revenueUsd,
+      revenueIqd,
+      expenseUsd,
+      expenseIqd,
+      netUsd: revenueUsd - expenseUsd,
+      netIqd: revenueIqd - expenseIqd,
+    };
   }, [transactions]);
 
   const openCreate = () => {
@@ -178,6 +208,7 @@ export default function RevenueExpensesPage() {
     setFormTitle('');
     setFormCategory('');
     setFormAmount('');
+    setFormCurrency('USD');
     setFormDate(new Date().toISOString().slice(0, 10));
     setFormNote('');
     setEditOpen(true);
@@ -189,6 +220,7 @@ export default function RevenueExpensesPage() {
     setFormTitle(tx.title);
     setFormCategory(tx.category);
     setFormAmount(String(tx.amount));
+    setFormCurrency(tx.currency || 'USD');
     setFormDate(tx.date);
     setFormNote(tx.note ?? '');
     setEditOpen(true);
@@ -199,8 +231,8 @@ export default function RevenueExpensesPage() {
       const isRev = payload.type === 'revenue';
       const endpoint = isRev ? '/revenue' : '/expenses';
       const apiPayload = isRev 
-        ? { amount: payload.amount, currency: 'USD', source: payload.category.toLowerCase(), description: payload.title, date: payload.date, status: payload.note || 'completed' }
-        : { amount: payload.amount, currency: 'USD', category: payload.category.toLowerCase().replace(' ', '_'), description: payload.title, date: payload.date, status: payload.note || 'completed' };
+        ? { amount: payload.amount, currency: payload.currency, source: payload.category.trim(), description: payload.title, date: payload.date, status: payload.note || 'completed' }
+        : { amount: payload.amount, currency: payload.currency, category: payload.category.trim(), description: payload.title, date: payload.date, status: payload.note || 'completed' };
       return api.post(endpoint, apiPayload);
     },
     onSuccess: () => {
@@ -221,8 +253,8 @@ export default function RevenueExpensesPage() {
       const isRev = payload.type === 'revenue';
       const endpoint = isRev ? `/revenue/${editing?.id}` : `/expenses/${editing?.id}`;
       const apiPayload = isRev 
-        ? { amount: payload.amount, currency: 'USD', source: payload.category.toLowerCase(), description: payload.title, date: payload.date, status: payload.note || 'completed' }
-        : { amount: payload.amount, currency: 'USD', category: payload.category.toLowerCase().replace(' ', '_'), description: payload.title, date: payload.date, status: payload.note || 'completed' };
+        ? { amount: payload.amount, currency: payload.currency, source: payload.category.trim(), description: payload.title, date: payload.date, status: payload.note || 'completed' }
+        : { amount: payload.amount, currency: payload.currency, category: payload.category.trim(), description: payload.title, date: payload.date, status: payload.note || 'completed' };
       return api.put(endpoint, apiPayload);
     },
     onSuccess: () => {
@@ -257,6 +289,7 @@ export default function RevenueExpensesPage() {
       title: formTitle.trim(),
       category: formCategory,
       amount,
+      currency: formCurrency,
       date: formDate,
       note: formNote.trim() || null,
     };
@@ -268,12 +301,21 @@ export default function RevenueExpensesPage() {
     }
   };
 
+  const handleExportPdf = () => {
+    exportToPdf(
+      'revenue-expenses',
+      filtered as unknown as Record<string, unknown>[],
+      language,
+      { startDate, endDate, type: filterType }
+    );
+  };
+
   return (
     <DashboardShell>
       <PageHeader
-        title="Revenue & Expenses"
-        description="Track income and spending"
-        breadcrumbs={[{ label: 'Home', href: '/dashboard' }, { label: 'Revenue & Expenses' }]}
+        title={language === 'ku' ? 'داهات و خەرجییەکان' : 'Revenue & Expenses'}
+        description={language === 'ku' ? 'بەدواداچوون بۆ داهات و تێچووەکانی پلاتفۆرمەکە' : 'Track income and spending'}
+        breadcrumbs={[{ label: language === 'ku' ? 'سەرەکی' : 'Home', href: '/dashboard' }, { label: language === 'ku' ? 'داهات و خەرجییەکان' : 'Revenue & Expenses' }]}
         actions={
           <Button onClick={openCreate}>
             <Plus className="me-2 h-4 w-4" /> {language === 'ku' ? 'زیادکردنی سەودا' : 'Add Transaction'}
@@ -283,31 +325,99 @@ export default function RevenueExpensesPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard title={language === 'ku' ? 'کۆی داهات' : 'Total Revenue'} value={totals.revenue} icon={TrendingUp} format="currency" accent="success" delay={0} />
-        <StatCard title={language === 'ku' ? 'کۆی خەرجییەکان' : 'Total Expenses'} value={totals.expense} icon={TrendingDown} format="currency" accent="destructive" delay={0.05} />
-        <StatCard title={language === 'ku' ? 'هاوسەنگیی گشتی' : 'Net Balance'} value={totals.net} icon={Wallet} format="currency" accent={totals.net >= 0 ? 'primary' : 'destructive'} delay={0.1} />
+        <StatCard
+          title={language === 'ku' ? 'کۆی داهات' : 'Total Revenue'}
+          value={`$${totals.revenueUsd.toLocaleString()} / ${totals.revenueIqd.toLocaleString()} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
+          icon={TrendingUp}
+          format="raw"
+          accent="success"
+          delay={0}
+        />
+        <StatCard
+          title={language === 'ku' ? 'کۆی خەرجییەکان' : 'Total Expenses'}
+          value={`$${totals.expenseUsd.toLocaleString()} / ${totals.expenseIqd.toLocaleString()} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
+          icon={TrendingDown}
+          format="raw"
+          accent="destructive"
+          delay={0.05}
+        />
+        <StatCard
+          title={language === 'ku' ? 'هاوسەنگیی گشتی' : 'Net Balance'}
+          value={`$${totals.netUsd.toLocaleString()} / ${totals.netIqd.toLocaleString()} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
+          icon={Wallet}
+          format="raw"
+          accent={totals.netUsd >= 0 || totals.netIqd >= 0 ? 'primary' : 'destructive'}
+          delay={0.1}
+        />
       </div>
 
       {/* Filter Bar */}
-      <div className="mt-6 flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-muted-foreground">
-            {language === 'ku' ? 'فلتەر:' : 'Filter:'}
+      <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">
+              {language === 'ku' ? 'فلتەر:' : 'Filter:'}
+            </span>
+            <Select value={filterType} onValueChange={(v) => setFilterType(v as 'all' | TransactionType)}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{language === 'ku' ? 'هەموو سەوداکان' : 'All Transactions'}</SelectItem>
+                <SelectItem value="revenue">{language === 'ku' ? 'تەنها داهات' : 'Revenue Only'}</SelectItem>
+                <SelectItem value="expense">{language === 'ku' ? 'تەنها خەرجییەکان' : 'Expenses Only'}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              {language === 'ku' ? 'لە:' : 'From:'}
+            </span>
+            <Input
+              type="date"
+              className="h-9 w-[130px] px-2 text-xs"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              {language === 'ku' ? 'بۆ:' : 'To:'}
+            </span>
+            <Input
+              type="date"
+              className="h-9 w-[130px] px-2 text-xs"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
+
+          {(startDate || endDate) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10"
+              onClick={() => {
+                setStartDate('');
+                setEndDate('');
+              }}
+            >
+              {language === 'ku' ? 'پاککردنەوە' : 'Clear'}
+            </Button>
+          )}
+
+          <span className="text-sm text-muted-foreground">
+            {filtered.length} {language === 'ku' ? 'تۆمار' : 'records'}
           </span>
-          <Select value={filterType} onValueChange={(v) => setFilterType(v as 'all' | TransactionType)}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{language === 'ku' ? 'هەموو سەوداکان' : 'All Transactions'}</SelectItem>
-              <SelectItem value="revenue">{language === 'ku' ? 'تەنها داهات' : 'Revenue Only'}</SelectItem>
-              <SelectItem value="expense">{language === 'ku' ? 'تەنها خەرجییەکان' : 'Expenses Only'}</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} {language === 'ku' ? 'تۆمار' : 'records'}
-        </span>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportPdf}>
+            <Download className="me-2 h-4 w-4" />
+            PDF
+          </Button>
+        </div>
       </div>
 
       {/* Table */}
@@ -367,7 +477,9 @@ export default function RevenueExpensesPage() {
                     <TableCell className="text-end font-semibold">
                       <span className={tx.type === 'revenue' ? 'text-success' : 'text-destructive'}>
                         {tx.type === 'revenue' ? '+' : '-'}
-                        {formatCurrency(Number(tx.amount))}
+                        {tx.currency === 'IQD'
+                          ? `${Number(tx.amount).toLocaleString()} ${language === 'ku' ? 'د.ع' : 'IQD'}`
+                          : `$${Number(tx.amount).toLocaleString()}`}
                       </span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(tx.date)}</TableCell>
@@ -432,31 +544,37 @@ export default function RevenueExpensesPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{language === 'ku' ? 'جۆری بابەت' : 'Category'}</Label>
-                <Select value={formCategory} onValueChange={setFormCategory}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={language === 'ku' ? 'جۆری بابەت هەڵبژێرە' : 'Select category'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {translateCategory(c, language)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="tx-category">{language === 'ku' ? 'جۆری بابەت' : 'Category'}</Label>
+                <Input
+                  id="tx-category"
+                  value={formCategory}
+                  onChange={(e) => setFormCategory(e.target.value)}
+                  placeholder={language === 'ku' ? 'جۆری بابەت بنووسە' : 'Enter category'}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="tx-amount">{language === 'ku' ? 'بڕ ($)' : 'Amount ($)'}</Label>
-                <Input
-                  id="tx-amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formAmount}
-                  onChange={(e) => setFormAmount(e.target.value)}
-                  placeholder="0.00"
-                />
+                <Label htmlFor="tx-amount">{language === 'ku' ? 'بڕ' : 'Amount'}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="tx-amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formAmount}
+                    onChange={(e) => setFormAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="flex-1"
+                  />
+                  <Select value={formCurrency} onValueChange={(v) => setFormCurrency(v as 'USD' | 'IQD')}>
+                    <SelectTrigger className="w-[95px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">USD ($)</SelectItem>
+                      <SelectItem value="IQD">{language === 'ku' ? 'د.ع' : 'IQD'}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
             <div className="space-y-2">

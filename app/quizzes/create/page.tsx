@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,9 +8,10 @@ import { z } from 'zod';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import * as LucideIcons from 'lucide-react';
-import { Save, ArrowLeft, ArrowRight, Plus, GripVertical, Trash2, Clock, Image as ImageIcon, CheckCircle2, FileText, Settings, Play, BarChart } from 'lucide-react';
+import { Save, ArrowLeft, ArrowRight, Plus, GripVertical, Trash2, Clock, Image as ImageIcon, CheckCircle2, FileText, Settings, Play, BarChart, Trophy, Calculator } from 'lucide-react';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { PageHeader } from '@/components/shared/page-header';
+import client from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,18 +31,43 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { useLanguage } from '@/hooks/use-language';
 import type { Category, Quiz } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { cn, getMediaUrl } from '@/lib/utils';
+
+function getLocalNow() {
+  const d = new Date();
+  const offset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function cleanExactDateString(dtString: string | null | undefined): string | null {
+  if (!dtString || !dtString.trim()) return null;
+  const clean = dtString.trim().replace('T', ' ').replace('Z', '').split('.')[0];
+  if (clean.length === 16) return `${clean}:00`;
+  return clean.slice(0, 19);
+}
+
+function toDatetimeLocal(dateStr: string | Date | null | undefined): string {
+  if (!dateStr) return '';
+  let clean = String(dateStr).trim();
+  clean = clean.replace(' ', 'T').replace('Z', '').split('.')[0];
+  return clean.slice(0, 16);
+}
+
 
 const quizSchema = z.object({
   title: z.string().min(3, 'Title is too short'),
   description: z.string().min(1, 'Description is required'),
-  categoryId: z.string().min(1, 'Select a category'),
   difficulty: z.enum(['easy', 'medium', 'hard']),
-  duration: z.number().min(1).max(120),
   isPublic: z.boolean(),
   shuffleQuestions: z.boolean(),
   showResults: z.boolean(),
   scheduledAt: z.string().optional().nullable(),
+  avatarUrl: z.string().optional().nullable(),
+  winnersCount: z.number().min(0).default(0),
+  rewards: z.array(z.object({
+    rank: z.number(),
+    amount: z.number().min(0),
+  })).default([]),
 });
 
 type QuizFormValues = z.infer<typeof quizSchema>;
@@ -52,11 +78,13 @@ interface QuestionDraft {
   type: 'multiple_choice' | 'image';
   points: number;
   timer: number;
+  categoryId?: string;
   options: { id: string; text: string; isCorrect: boolean }[];
   explanation: string;
+  mediaUrl?: string;
 }
 
-const STEPS = ['details', 'questions', 'settings', 'preview'] as const;
+const STEPS = ['details', 'questions', 'preview'] as const;
 
 export default function CreateQuizPage() {
   const router = useRouter();
@@ -78,6 +106,11 @@ export default function CreateQuizPage() {
   const [questions, setQuestions] = useState<QuestionDraft[]>([]);
   const [deletedQuestionIds, setDeletedQuestionIds] = useState<string[]>([]);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [totalPrize, setTotalPrize] = useState<number>(0);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadingQuestionId, setUploadingQuestionId] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
 
   const {
     register,
@@ -93,32 +126,104 @@ export default function CreateQuizPage() {
       title: '',
       description: '',
       difficulty: 'medium',
-      duration: 15,
       isPublic: true,
       shuffleQuestions: false,
       showResults: true,
-      categoryId: '',
-      scheduledAt: '',
+      scheduledAt: getLocalNow(),
+      avatarUrl: '',
+      winnersCount: 0,
+      rewards: [],
     },
   });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'quiz_avatars');
+      
+      const uploadRes = await client.post('/admin/storage/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      if (uploadRes.data?.success || uploadRes.data?.key) {
+        const url = uploadRes.data.key || uploadRes.data.url || '';
+        setValue('avatarUrl', url, { shouldValidate: true, shouldDirty: true });
+        toast.success(language === 'ku' ? 'لۆگۆکە بارکرا' : 'Logo uploaded');
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (err: any) {
+      console.error('Upload Error:', err);
+      toast.error(language === 'ku' ? 'هەڵە لە بارکردندا' : 'Upload failed');
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleQuestionImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, questionId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingQuestionId(questionId);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'questions');
+      
+      const uploadRes = await client.post('/admin/storage/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      if (uploadRes.data?.success || uploadRes.data?.key) {
+        const url = uploadRes.data.key || uploadRes.data.url || '';
+        updateQuestion(questionId, { mediaUrl: url });
+        toast.success(language === 'ku' ? 'وێنەکە بارکرا' : 'Image uploaded');
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (err: any) {
+      console.error('Upload Error:', err);
+      toast.error(language === 'ku' ? 'هەڵە لە بارکردندا' : 'Upload failed');
+    } finally {
+      setUploadingQuestionId(null);
+      e.target.value = '';
+    }
+  };
 
   // Hydrate form if in edit mode
   useEffect(() => {
     async function loadQuizData() {
       if (!isEditMode) return;
       try {
-        const quizData = await api.get<Quiz>(`/quizzes/${quizIdToEdit}`);
+        const quizData = await api.get<any>(`/quizzes/${quizIdToEdit}`);
         if (quizData) {
+          const isPublished = ['published', 'PUBLISHED'].includes(quizData.status);
+          if (isPublished || quizData.sessionStatus === 'LIVE' || quizData.sessionStatus === 'FINISHED') {
+            toast.error(
+              language === 'ku'
+                ? 'ناتوانیت دەستکاری ئەم کویزە بکەیت چونکە بڵاوکراوەتەوە.'
+                : 'You cannot edit this quiz because it is published.'
+            );
+            router.push(`/quizzes/${quizIdToEdit}`);
+            return;
+          }
           reset({
-            title: quizData.title || '',
+            title: quizData.title,
             description: quizData.description || '',
-            categoryId: quizData.categoryId || '',
-            difficulty: quizData.difficulty as 'easy' | 'medium' | 'hard' || 'medium',
-            duration: quizData.duration || 15,
-            isPublic: true, // Mock property mapping
-            shuffleQuestions: false, // Mock property mapping
-            showResults: true, // Mock property mapping
-            scheduledAt: quizData.scheduledAt ? new Date(quizData.scheduledAt).toISOString().slice(0, 16) : '',
+            difficulty: quizData.difficulty as 'easy' | 'medium' | 'hard',
+            isPublic: true,
+            shuffleQuestions: false,
+            showResults: true,
+            scheduledAt: (quizData.startedAt || quizData.scheduledAt) ? toDatetimeLocal(quizData.startedAt || quizData.scheduledAt) : getLocalNow(),
+            avatarUrl: quizData.avatarUrl || '',
+            winnersCount: quizData.winnersCount ?? 0,
+            rewards: quizData.rewards && quizData.rewards.length > 0 ? quizData.rewards : [],
           });
         }
 
@@ -126,8 +231,8 @@ export default function CreateQuizPage() {
         if (questionsData?.data) {
           setQuestions(questionsData.data.map(q => ({
             ...q,
-            // Fallback for valid types if somehow an old type is fetched
-            type: (q.type === 'image' ? 'image' : 'multiple_choice') as 'multiple_choice' | 'image'
+            type: (q.type === 'image' ? 'image' : 'multiple_choice') as 'multiple_choice' | 'image',
+            mediaUrl: (q as any).mediaUrl || ''
           })));
         }
       } catch (error) {
@@ -138,15 +243,26 @@ export default function CreateQuizPage() {
     loadQuizData();
   }, [isEditMode, quizIdToEdit, reset, language]);
 
-  const duration = watch('duration');
+  const winnersCount = watch('winnersCount');
   const watchValues = watch();
-  const selectedCategoryName = categories.find(c => c.id === watchValues.categoryId)?.name;
+
+  // Auto-generate rewards array when winnersCount changes
+  useEffect(() => {
+    const count = winnersCount || 0;
+    const current = watchValues.rewards || [];
+    const updated = Array.from({ length: count }, (_, i) => ({
+      rank: i + 1,
+      amount: current[i]?.amount ?? 0,
+    }));
+    setValue('rewards', updated);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [winnersCount]);
 
   const handleNext = async () => {
     let isValid = false;
     
     if (currentStep === 0) {
-      isValid = await trigger(['title', 'description', 'categoryId', 'difficulty', 'duration']);
+      isValid = await trigger(['title', 'description', 'difficulty']);
     } else if (currentStep === 1) {
       if (questions.length === 0) {
         toast.error(language === 'ku' ? 'لانی کەم پرسیارێک زیاد بکە' : 'Add at least one question');
@@ -163,8 +279,6 @@ export default function CreateQuizPage() {
         return;
       }
       isValid = true;
-    } else if (currentStep === 2) {
-      isValid = await trigger(['isPublic', 'shuffleQuestions', 'showResults']);
     }
 
     if (isValid && currentStep < STEPS.length - 1) {
@@ -189,6 +303,7 @@ export default function CreateQuizPage() {
         type: 'multiple_choice',
         points: 10,
         timer: 30,
+        categoryId: '',
         options: [
           { id: 'a', text: '', isCorrect: true },
           { id: 'b', text: '', isCorrect: false },
@@ -196,6 +311,7 @@ export default function CreateQuizPage() {
           { id: 'd', text: '', isCorrect: false },
         ],
         explanation: '',
+        mediaUrl: '',
       },
     ]);
   };
@@ -226,17 +342,15 @@ export default function CreateQuizPage() {
 
   const onSubmit = async (values: QuizFormValues) => {
     try {
-      const category = categories.find(c => c.id === values.categoryId);
       const quizPayload = {
         title: values.title,
         description: values.description,
-        categoryId: values.categoryId,
-        categoryName: category?.name,
         difficulty: values.difficulty,
-        duration: values.duration,
-        status: values.scheduledAt ? 'scheduled' : 'published',
-        questionCount: questions.length,
-        scheduledAt: values.scheduledAt ? new Date(values.scheduledAt).toISOString() : null,
+        avatarUrl: values.avatarUrl || null,
+        // Status defaults to 'draft' on creation via backend schema. We don't overwrite it on edit.
+        startedAt: cleanExactDateString(values.scheduledAt),
+        winnersCount: values.winnersCount,
+        rewards: values.rewards,
       };
       
       let quizId = quizIdToEdit;
@@ -263,6 +377,9 @@ export default function CreateQuizPage() {
           explanation: q.explanation,
           points: q.points,
           timer: q.timer,
+          categoryId: q.categoryId || null,
+          categoryName: categories.find(c => c.id === q.categoryId)?.name || null,
+          mediaUrl: q.mediaUrl || null,
         };
         if (q.id.startsWith('draft_')) {
           return api.post('/questions', payload);
@@ -313,7 +430,6 @@ export default function CreateQuizPage() {
           {[
             language === 'ku' ? 'زانیارییەکان' : 'Details', 
             language === 'ku' ? 'پرسیارەکان' : 'Questions', 
-            language === 'ku' ? 'ڕێکخستنەکان' : 'Settings', 
             language === 'ku' ? 'پێداچوونەوە' : 'Preview'
           ].map((label, index) => {
             const isCompleted = index < currentStep;
@@ -366,35 +482,6 @@ export default function CreateQuizPage() {
                 
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label className="text-base font-semibold">{language === 'ku' ? 'جۆری بابەت' : 'Category'}</Label>
-                    <Select onValueChange={(v) => setValue('categoryId', v)} value={watchValues.categoryId}>
-                      <SelectTrigger className="h-12">
-                        <SelectValue placeholder={language === 'ku' ? 'جۆری بابەت هەڵبژێرە' : 'Select category'} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {loadingCategories ? (
-                          <SelectItem value="loading" disabled>{language === 'ku' ? 'چاوەڕێبە...' : 'Loading...'}</SelectItem>
-                        ) : categories.length > 0 ? (
-                          categories.map((c) => {
-                            const IconComponent = c.icon && (LucideIcons as any)[c.icon] ? (LucideIcons as any)[c.icon] : null;
-                            return (
-                              <SelectItem key={c.id} value={c.id}>
-                                <div className="flex items-center gap-2">
-                                  {IconComponent && <IconComponent className="h-4 w-4" style={{ color: c.color }} />}
-                                  <span>{c.name}</span>
-                                </div>
-                              </SelectItem>
-                            );
-                          })
-                        ) : (
-                          <SelectItem value="none" disabled>{language === 'ku' ? 'هیچ جۆرە بابەتێک نییە' : 'No categories found'}</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    {errors.categoryId && <p className="text-sm text-destructive font-medium">{language === 'ku' ? 'تکایە جۆرە بابەتێک هەڵبژێرە' : errors.categoryId.message}</p>}
-                  </div>
-                  
-                  <div className="space-y-2">
                     <Label className="text-base font-semibold">{language === 'ku' ? 'ئاستی سەختی' : 'Difficulty'}</Label>
                     <Select onValueChange={(v) => setValue('difficulty', v as 'easy' | 'medium' | 'hard')} value={watchValues.difficulty}>
                       <SelectTrigger className="h-12">
@@ -407,21 +494,24 @@ export default function CreateQuizPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                
-                <div className="space-y-4 rounded-lg bg-muted/50 p-6 border">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-base font-semibold flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> {language === 'ku' ? 'ماوەی کات' : 'Duration'}</Label>
-                    <Badge variant="secondary" className="text-sm px-3 py-1">{duration} {language === 'ku' ? 'خولەک' : 'min'}</Badge>
+                  <div className="space-y-2">
+                    <Label htmlFor="avatarUrl" className="text-base font-semibold flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4 text-primary" />
+                      {language === 'ku' ? 'لۆگۆ / وێنەی کویز (URL)' : 'Quiz Logo / Avatar URL'}
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="avatarUrl"
+                        className="h-12 flex-1"
+                        placeholder={language === 'ku' ? 'لینکی لۆگۆی کویز بنووسە https://...' : 'Enter logo/avatar image URL'}
+                        {...register('avatarUrl')}
+                      />
+                      <input type="file" accept="image/*" className="hidden" ref={imageInputRef} onChange={handleFileUpload} />
+                      <Button type="button" variant="outline" className="h-12 w-12 shrink-0" onClick={() => imageInputRef.current?.click()} disabled={isUploadingImage}>
+                        {isUploadingImage ? <LucideIcons.Loader2 className="h-4 w-4 animate-spin" /> : <LucideIcons.Upload className="h-4 w-4" />}
+                      </Button>
+                    </div>
                   </div>
-                  <Slider
-                    value={[duration]}
-                    min={1}
-                    max={120}
-                    step={1}
-                    onValueChange={(v) => setValue('duration', v[0])}
-                    className="py-4"
-                  />
                 </div>
 
                 <div className="grid gap-6 sm:grid-cols-2">
@@ -430,7 +520,109 @@ export default function CreateQuizPage() {
                     <Input type="datetime-local" className="h-12" {...register('scheduledAt')} />
                     <p className="text-xs text-muted-foreground">{language === 'ku' ? 'ئەگەر کات دیاری بکرێت، کویزەکە دەبێتە scheduled' : 'If set, quiz becomes scheduled'}</p>
                   </div>
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold flex items-center gap-2">{language === 'ku' ? 'ژمارەی براوەکان' : 'Number of Winners'}</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      className="h-12"
+                      {...register('winnersCount', { valueAsNumber: true })}
+                    />
+                  </div>
                 </div>
+                {/* Rewards Section */}
+                {(watch('rewards') || []).length > 0 && (
+                  <div className="space-y-4 rounded-lg bg-muted/50 p-5 border">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-semibold flex items-center gap-2">
+                        <Trophy className="h-4 w-4 text-primary" />
+                        {language === 'ku' ? 'خەڵاتەکان بۆ هەر براوەیەک' : 'Prize per Rank'}
+                      </Label>
+                      <Badge variant="outline" className="text-sm">
+                        {language === 'ku' ? 'کۆ:' : 'Total:'} {(watch('rewards') || []).reduce((s, r) => s + (r.amount || 0), 0).toLocaleString()} {language === 'ku' ? 'د.ع' : 'IQD'}
+                      </Badge>
+                    </div>
+                    {/* Total pool + auto-distribute */}
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <span className={cn(
+                          "absolute top-1/2 -translate-y-1/2 text-muted-foreground text-sm",
+                          language === 'ku' ? "right-3" : "left-3"
+                        )}>
+                          {language === 'ku' ? 'د.ع' : 'IQD'}
+                        </span>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          className={cn("h-10", language === 'ku' ? "pr-12" : "pl-12")}
+                          placeholder={language === 'ku' ? 'کۆی گشتی خەڵات...' : 'Total prize pool...'}
+                          value={totalPrize ? totalPrize.toLocaleString() : ''}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/,/g, '');
+                            setTotalPrize(parseInt(raw) || 0);
+                          }}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="h-10 gap-1.5 shrink-0"
+                        onClick={() => {
+                          const count = watch('winnersCount') || 0;
+                          if (!count || !totalPrize) return;
+                          // Weighted distribution: 50%, 30%, 20% for top 3, equal after
+                          const weights = Array.from({ length: count }, (_, i) => {
+                            if (i === 0) return 0.5;
+                            if (i === 1) return 0.3;
+                            if (i === 2) return 0.15;
+                            return 0.05 / Math.max(count - 3, 1);
+                          });
+                          const total = weights.reduce((a, b) => a + b, 0);
+                          const normalized = weights.map(w => w / total);
+                          const distributed = normalized.map((w, i) => ({
+                            rank: i + 1,
+                            amount: Math.round(totalPrize * w),
+                          }));
+                          setValue('rewards', distributed);
+                        }}
+                      >
+                        <Calculator className="h-3.5 w-3.5" />
+                        {language === 'ku' ? 'دابەشکردن' : 'Auto-split'}
+                      </Button>
+                    </div>
+                    {/* Per-rank inputs */}
+                    <div className="grid gap-2.5 sm:grid-cols-2">
+                      {(watch('rewards') || []).map((r, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="min-w-[80px] text-sm font-medium text-muted-foreground">
+                            {language === 'ku' ? `${i + 1}. براوە` : `Rank ${i + 1}`}
+                          </span>
+                          <div className="relative flex-1">
+                            <span className={cn(
+                              "absolute top-1/2 -translate-y-1/2 text-muted-foreground text-sm",
+                              language === 'ku' ? "right-3" : "left-3"
+                            )}>
+                              {language === 'ku' ? 'د.ع' : 'IQD'}
+                            </span>
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              className={cn("h-9", language === 'ku' ? "pr-12" : "pl-12")}
+                              value={r.amount ? r.amount.toLocaleString() : ''}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/,/g, '');
+                                const updated = [...(watch('rewards') || [])];
+                                updated[i] = { rank: i + 1, amount: parseInt(raw) || 0 };
+                                setValue('rewards', updated);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -504,7 +696,21 @@ export default function CreateQuizPage() {
                           />
                         </div>
                         
-                        <div className="grid gap-6 sm:grid-cols-3 bg-muted/30 p-4 rounded-xl border">
+                        <div className="grid gap-6 sm:grid-cols-4 bg-muted/30 p-4 rounded-xl border">
+                          <div className="space-y-2">
+                            <Label className="font-semibold">{language === 'ku' ? 'جۆری بابەت' : 'Category'}</Label>
+                            <Select
+                              value={q.categoryId || ''}
+                              onValueChange={(v) => updateQuestion(q.id, { categoryId: v })}
+                            >
+                              <SelectTrigger><SelectValue placeholder={language === 'ku' ? 'هەڵبژێرە' : 'Select'} /></SelectTrigger>
+                              <SelectContent>
+                                {categories.map(c => (
+                                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                           <div className="space-y-2">
                             <Label className="font-semibold">{language === 'ku' ? 'جۆر' : 'Type'}</Label>
                             <Select
@@ -519,41 +725,69 @@ export default function CreateQuizPage() {
                             </Select>
                           </div>
                           <div className="space-y-2">
-                            <Label className="font-semibold">{language === 'ku' ? 'خاڵەکان (نمرە)' : 'Points'}</Label>
+                            <Label className="font-semibold text-amber-600 dark:text-amber-500 flex items-center gap-1">
+                              <Trophy className="h-4 w-4" /> {language === 'ku' ? 'خاڵەکان (نمرە)' : 'Points'}
+                            </Label>
                             <Input
                               type="number"
                               min={1}
+                              className="border-amber-300 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-100 font-bold focus-visible:ring-amber-500 shadow-sm"
                               value={q.points}
-                              onChange={(e) => updateQuestion(q.id, { points: Number(e.target.value) })}
+                              onChange={(e) => updateQuestion(q.id, { points: Number(e.target.value), type: q.type })}
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label className="font-semibold">{language === 'ku' ? 'کاتی وەڵامدانەوە (چرکە)' : 'Timer (sec)'}</Label>
+                            <Label className="font-semibold text-blue-600 dark:text-blue-500 flex items-center gap-1">
+                              <Clock className="h-4 w-4" /> {language === 'ku' ? 'کاتی وەڵامدانەوە (چرکە)' : 'Timer (sec)'}
+                            </Label>
                             <div className="flex items-center gap-2 relative">
-                              <Clock className="absolute ms-3 h-4 w-4 text-muted-foreground" />
                               <Input
                                 type="number"
                                 min={5}
-                                className="ps-9"
+                                className="border-blue-300 bg-blue-50 dark:bg-blue-950/30 text-blue-900 dark:text-blue-100 font-bold focus-visible:ring-blue-500 shadow-sm"
                                 value={q.timer}
-                                onChange={(e) => updateQuestion(q.id, { timer: Number(e.target.value) })}
+                                onChange={(e) => updateQuestion(q.id, { timer: Number(e.target.value), type: q.type })}
                               />
                             </div>
                           </div>
                         </div>
 
                         {q.type === 'image' && (
-                          <div className="rounded-xl border-2 border-dashed border-border p-8 text-center bg-muted/10 hover:bg-muted/30 transition-colors">
-                            <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                              <div className="h-16 w-16 bg-background rounded-full shadow-sm flex items-center justify-center">
-                                <ImageIcon className="h-8 w-8 text-primary" />
+                          <div className="rounded-xl border-2 border-dashed border-border p-8 text-center bg-muted/10 hover:bg-muted/30 transition-colors relative overflow-hidden">
+                            {q.mediaUrl ? (
+                              <div className="relative group flex justify-center">
+                                <img src={getMediaUrl(q.mediaUrl)} alt="Question media" className="max-h-48 object-contain rounded shadow-sm" />
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 rounded">
+                                  <label className="cursor-pointer">
+                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleQuestionImageUpload(e, q.id)} />
+                                    <Button type="button" variant="secondary" size="sm" className="pointer-events-none">
+                                      {language === 'ku' ? 'گۆڕین' : 'Change'}
+                                    </Button>
+                                  </label>
+                                  <Button type="button" variant="destructive" size="sm" onClick={() => updateQuestion(q.id, { mediaUrl: '' })}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </div>
-                              <div>
-                                <p className="font-medium text-foreground">{language === 'ku' ? 'کلیک بکە یان وێنەیەک ڕابکێشە' : 'Click or drag an image'}</p>
-                                <p className="text-xs mt-1">{language === 'ku' ? 'پشتگیری PNG, JPG دەکات' : 'Supports PNG, JPG'}</p>
+                            ) : (
+                              <label className="flex flex-col items-center gap-3 text-muted-foreground cursor-pointer">
+                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleQuestionImageUpload(e, q.id)} />
+                                <div className="h-16 w-16 bg-background rounded-full shadow-sm flex items-center justify-center">
+                                  <ImageIcon className="h-8 w-8 text-primary" />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-foreground">{language === 'ku' ? 'کلیک بکە بۆ بارکردنی وێنە' : 'Click to upload image'}</p>
+                                  <p className="text-xs mt-1">{language === 'ku' ? 'پشتگیری PNG, JPG, WEBP دەکات' : 'Supports PNG, JPG, WEBP'}</p>
+                                </div>
+                                <Button type="button" variant="secondary" size="sm" className="mt-2 pointer-events-none">{language === 'ku' ? 'هەڵبژاردنی وێنە' : 'Choose Image'}</Button>
+                              </label>
+                            )}
+                            {uploadingQuestionId === q.id && (
+                              <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center z-10">
+                                <LucideIcons.Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                                <p className="text-sm font-medium text-primary">{language === 'ku' ? 'باردەکرێت...' : 'Uploading...'}</p>
                               </div>
-                              <Button type="button" variant="secondary" size="sm" className="mt-2">{language === 'ku' ? 'هەڵبژاردنی وێنە' : 'Choose Image'}</Button>
-                            </div>
+                            )}
                           </div>
                         )}
 
@@ -573,6 +807,7 @@ export default function CreateQuizPage() {
                                   title={language === 'ku' ? 'وەڵامی ڕاست دیاری بکە' : 'Mark as correct answer'}
                                   onClick={() => updateQuestion(q.id, {
                                     options: q.options.map((o) => ({ ...o, isCorrect: o.id === opt.id })),
+                                    type: q.type,
                                   })}
                                   className={cn(
                                     "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all shadow-sm",
@@ -589,6 +824,7 @@ export default function CreateQuizPage() {
                                   value={opt.text}
                                   onChange={(e) => updateQuestion(q.id, {
                                     options: q.options.map((o) => o.id === opt.id ? { ...o, text: e.target.value } : o),
+                                    type: q.type,
                                   })}
                                 />
                               </div>
@@ -603,7 +839,7 @@ export default function CreateQuizPage() {
                             className="bg-muted/20"
                             rows={2}
                             value={q.explanation}
-                            onChange={(e) => updateQuestion(q.id, { explanation: e.target.value })}
+                            onChange={(e) => updateQuestion(q.id, { explanation: e.target.value, type: q.type })}
                           />
                         </div>
                       </CardContent>
@@ -620,39 +856,8 @@ export default function CreateQuizPage() {
           </motion.div>
         )}
 
-        {/* STEP 3: Settings */}
+        {/* STEP 3: Beautiful Preview */}
         {currentStep === 2 && (
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-            <Card className="border-t-4 border-t-primary shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-xl flex items-center gap-2"><Settings className="h-5 w-5 text-primary" />{language === 'ku' ? 'ڕێکخستنەکانی کویز' : 'Quiz Settings'}</CardTitle>
-                <CardDescription>{language === 'ku' ? 'شێوازی کارکردنی کویزەکەت ڕێکبخە پێش بڵاوکردنەوەی.' : 'Configure how your quiz behaves before publishing.'}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {[
-                  { key: 'isPublic', label: language === 'ku' ? 'کویزی گشتی' : 'Public Quiz', desc: language === 'ku' ? 'ڕێگە بدە هەمووان ئەم کویزە ببینن و بەشداری بکەن' : 'Allow anyone to find and join this quiz in the catalog' },
-                  { key: 'shuffleQuestions', label: language === 'ku' ? 'تێکەڵکردنی پرسیارەکان' : 'Shuffle Questions', desc: language === 'ku' ? 'پرسیارەکان بە هەڕەمەکی بۆ هەر بەشداربوویەک دەردەکەون' : 'Randomize question order for each participant automatically' },
-                  { key: 'showResults', label: language === 'ku' ? 'پیشاندانی ئەنجام' : 'Show Results', desc: language === 'ku' ? 'دوای تەواوبوون، ئەنجامەکان ڕاستەوخۆ پیشان بدرێت' : 'Display the final score and results after quiz completion' },
-                ].map((setting) => (
-                  <div key={setting.key} className="flex items-center justify-between rounded-xl border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="pe-4">
-                      <Label className="text-base font-bold cursor-pointer" htmlFor={setting.key}>{setting.label}</Label>
-                      <p className="text-sm text-muted-foreground mt-1">{setting.desc}</p>
-                    </div>
-                    <Switch
-                      id={setting.key}
-                      checked={watchValues[setting.key as 'isPublic' | 'shuffleQuestions' | 'showResults']}
-                      onCheckedChange={(v) => setValue(setting.key as 'isPublic' | 'shuffleQuestions' | 'showResults', v)}
-                    />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
-        {/* STEP 4: Beautiful Preview */}
-        {currentStep === 3 && (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-4xl mx-auto">
             <div className="text-center mb-8">
               <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
@@ -665,13 +870,17 @@ export default function CreateQuizPage() {
             </div>
 
             <Card className="overflow-hidden border-2 shadow-xl">
-              <div className="bg-primary p-8 text-primary-foreground text-center relative overflow-hidden">
+              <div className="bg-primary p-8 text-primary-foreground text-center relative overflow-hidden flex flex-col items-center">
                 <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
-                <Badge variant="outline" className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 mb-4 backdrop-blur-md">
-                  {selectedCategoryName || (language === 'ku' ? 'بێ جۆری بابەت' : 'No Category')}
-                </Badge>
-                <h2 className="text-3xl font-bold mb-4">{watchValues.title || (language === 'ku' ? 'کویزی بێناو' : 'Untitled Quiz')}</h2>
-                <p className="max-w-2xl mx-auto text-primary-foreground/80 text-lg">{watchValues.description || (language === 'ku' ? 'هیچ ناساندنێک نییە.' : 'No description provided.')}</p>
+                
+                <img
+                  src={watchValues.avatarUrl ? getMediaUrl(watchValues.avatarUrl) : '/logo.png'}
+                  alt="Quiz Avatar"
+                  className="h-20 w-20 rounded-2xl object-cover border-4 border-background bg-background shadow-md mb-4 z-10"
+                />
+
+                <h2 className="text-3xl font-bold mb-4 z-10">{watchValues.title || (language === 'ku' ? 'کویزی بێناو' : 'Untitled Quiz')}</h2>
+                <p className="max-w-2xl mx-auto text-primary-foreground/80 text-lg z-10">{watchValues.description || (language === 'ku' ? 'هیچ ناساندنێک نییە.' : 'No description provided.')}</p>
               </div>
 
               <CardContent className="p-0">
@@ -679,12 +888,22 @@ export default function CreateQuizPage() {
                   <div className="p-6 text-center flex flex-col items-center justify-center">
                     <BarChart className="h-6 w-6 text-muted-foreground mb-2" />
                     <p className="text-sm font-semibold text-muted-foreground">{language === 'ku' ? 'ئاست' : 'Difficulty'}</p>
-                    <p className="text-lg font-bold capitalize">{watchValues.difficulty}</p>
+                    <Badge variant="outline" className={cn("mt-1 capitalize text-sm font-bold", 
+                      watchValues.difficulty === 'easy' ? 'text-green-500 border-green-200 bg-green-500/10' :
+                      watchValues.difficulty === 'medium' ? 'text-amber-500 border-amber-200 bg-amber-500/10' :
+                      'text-red-500 border-red-200 bg-red-500/10'
+                    )}>
+                      {watchValues.difficulty === 'easy' ? (language === 'ku' ? 'ئاسان' : 'Easy') : 
+                       watchValues.difficulty === 'medium' ? (language === 'ku' ? 'مامناوەند' : 'Medium') : 
+                       (language === 'ku' ? 'قورس' : 'Hard')}
+                    </Badge>
                   </div>
                   <div className="p-6 text-center flex flex-col items-center justify-center">
                     <Clock className="h-6 w-6 text-muted-foreground mb-2" />
                     <p className="text-sm font-semibold text-muted-foreground">{language === 'ku' ? 'ماوە' : 'Duration'}</p>
-                    <p className="text-lg font-bold">{watchValues.duration} {language === 'ku' ? 'خولەک' : 'min'}</p>
+                    <p className="text-lg font-bold">
+                      {Math.ceil(questions.reduce((acc, q) => acc + (q.timer || 0), 0) / 60)} {language === 'ku' ? 'خولەک' : 'min'}
+                    </p>
                   </div>
                   <div className="p-6 text-center flex flex-col items-center justify-center">
                     <FileText className="h-6 w-6 text-muted-foreground mb-2" />
@@ -720,18 +939,32 @@ export default function CreateQuizPage() {
         )}
 
         {/* Global Footer (Hidden on Preview step) */}
-        {currentStep < 3 && (
+        {currentStep < 2 && (
           <div className="mt-8 flex justify-between border-t pt-6">
             <Button type="button" variant="outline" size="lg" onClick={handleBack} disabled={currentStep === 0} className="rounded-full">
               <ArrowLeft className="me-2 h-4 w-4 rtl:rotate-180" /> {language === 'ku' ? 'گەڕانەوە' : 'Back'}
             </Button>
 
-            <Button type="button" size="lg" onClick={handleNext} className="rounded-full shadow-md">
-              {language === 'ku' ? 'دواتر' : 'Next'} <ArrowRight className="ms-2 h-4 w-4 rtl:rotate-180" />
-            </Button>
+            <div className="flex gap-3">
+              {isEditMode && (
+                <Button
+                  type="submit"
+                  size="lg"
+                  variant="outline"
+                  className="rounded-full border-primary text-primary hover:bg-primary hover:text-primary-foreground shadow-sm"
+                >
+                  <Save className="me-2 h-4 w-4" />
+                  {language === 'ku' ? 'پاشەکەوتکردن' : 'Save'}
+                </Button>
+              )}
+              <Button type="button" size="lg" onClick={handleNext} className="rounded-full shadow-md">
+                {language === 'ku' ? 'دواتر' : 'Next'} <ArrowRight className="ms-2 h-4 w-4 rtl:rotate-180" />
+              </Button>
+            </div>
           </div>
         )}
       </form>
+
     </DashboardShell>
   );
 }

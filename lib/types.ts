@@ -18,28 +18,41 @@ export interface User {
   quizzesPlayed: number;
   quizzesWon: number;
   totalPoints: number;
+  totalRewards: number;
   skip: number;
   joinedAt: string;
   lastActiveAt: string;
 }
 
-export type QuizStatus = 'draft' | 'published' | 'scheduled' | 'running' | 'finished' | 'archived';
+export type QuizStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' | 'running' | 'ready' | 'live';
 export type QuizDifficulty = 'easy' | 'medium' | 'hard';
 
 export interface Quiz {
   id: string;
   title: string;
   description: string;
-  categoryId: string;
-  categoryName: string;
   status: QuizStatus;
   difficulty: QuizDifficulty;
+  avatarUrl?: string | null;
+  winnersCount: number;
+  rewards: { rank: number; amount: number }[];
   questionCount: number;
   participantCount: number;
-  duration: number;
-  scheduledAt: string | null;
+  startedAt?: string | null;
+  scheduledAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  sessionStatus?: 'WAITING' | 'LIVE' | 'FINISHED' | 'CANCELLED' | null;
+  winners?: {
+    rank: number;
+    winnerPosition: number;
+    userName: string;
+    username: string;
+    avatarUrl: string | null;
+    score: number;
+    prizeAmount: number;
+    prize: string;
+  }[];
 }
 
 export type QuestionType = 'multiple_choice' | 'image';
@@ -60,6 +73,8 @@ export interface Question {
   points: number;
   timer: number;
   mediaUrl: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
   createdAt: string;
 }
 
@@ -145,6 +160,7 @@ export interface Sponsor {
   imageUrl: string | null;
   videoUrl: string | null;
   link: string | null;
+  type?: 'home' | 'quiz';
   createdAt: string;
 }
 

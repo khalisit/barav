@@ -17,7 +17,7 @@ export function useLogin() {
     onSuccess: (data) => {
       setTokens(data.tokens.accessToken);
       setAccessToken(data.tokens.accessToken);
-      sessionStorage.setItem(
+      localStorage.setItem(
         'barav-access-token',
         data.tokens.accessToken
       );
@@ -38,7 +38,7 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => logoutApi(),
     onSettled: () => {
-      sessionStorage.removeItem('barav-access-token');
+      localStorage.removeItem('barav-access-token');
       clearAuth();
       router.push('/login');
     },

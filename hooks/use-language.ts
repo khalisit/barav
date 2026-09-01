@@ -20,6 +20,7 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.sponsors': 'سپۆنسەرەکان',
     'nav.compete': 'پێشبڕکێ',
     'nav.leaderboard': 'ڕیزبەندی',
+    'nav.winners': 'براوەکان',
     'nav.users': 'بەکارهێنەران',
     'nav.audit-logs': 'لۆگەکانی چاودێری',
     'nav.system': 'سیستەم',
@@ -29,6 +30,7 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.settings': 'ڕێکخستنەکان',
     'nav.profile': 'پڕۆفایل',
     'nav.logout': 'چوونەدەرەوە',
+    'nav.support': 'پشتیوانی',
 
     // Dashboard Header & Welcome
     'dash.welcome': 'بەخێربێیتەوە. ئەوەی ئەمڕۆ ڕوودەدات لێرەیە.',
@@ -86,6 +88,7 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.sponsors': 'Sponsors',
     'nav.compete': 'Compete',
     'nav.leaderboard': 'Leaderboard',
+    'nav.winners': 'Winners',
     'nav.users': 'Users',
     'nav.audit-logs': 'Audit Logs',
     'nav.system': 'System',
@@ -95,6 +98,7 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.settings': 'Settings',
     'nav.profile': 'Profile',
     'nav.logout': 'Log out',
+    'nav.support': 'Support',
 
     // Dashboard Header & Welcome
     'dash.welcome': "Welcome back. Here's what's happening today.",

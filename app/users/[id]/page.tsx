@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Mail, Calendar, Trophy, Gamepad2, Target, Ban, Trash2, CheckCircle, RotateCcw, AlertTriangle, Pencil, Phone, FastForward } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
@@ -25,6 +25,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SupportChat } from '@/components/users/support-chat';
 import { api } from '@/lib/api-client';
 import type { User } from '@/lib/types';
 import { formatDate, formatDateTime, getInitials } from '@/lib/format';
@@ -34,6 +36,8 @@ import { useLanguage } from '@/hooks/use-language';
 export default function UserDetailsPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get('tab') || 'activity';
   const queryClient = useQueryClient();
   const { language } = useLanguage();
 
@@ -223,7 +227,13 @@ export default function UserDetailsPage() {
         </div>
       </div>
 
-      <Card className="mt-6 shadow-sm">
+      <Tabs defaultValue={defaultTab} className="mt-6">
+        <TabsList className="mb-4">
+          <TabsTrigger value="activity">{language === 'ku' ? 'چالاکییەکان' : 'Activity'}</TabsTrigger>
+          <TabsTrigger value="support">{language === 'ku' ? 'پشتیوانی' : 'Support Chat'}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="activity">
+          <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="text-base">{language === 'ku' ? 'دوایین چالاکییەکان' : 'Recent Activity'}</CardTitle>
         </CardHeader>
@@ -258,6 +268,18 @@ export default function UserDetailsPage() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+        <TabsContent value="support">
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base">{language === 'ku' ? 'نامەکانی پشتیوانی' : 'Support Messages'}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {typeof params.id === 'string' && <SupportChat userId={params.id} />}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <ConfirmDialog
         open={statusTarget === 'banned'}

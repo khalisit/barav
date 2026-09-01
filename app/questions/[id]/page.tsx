@@ -1,308 +1,150 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Save, ArrowLeft, Plus, Trash2, Image as ImageIcon, Mic } from 'lucide-react';
+import { ArrowLeft, Clock, Trophy, HelpCircle, Layers, Image as ImageIcon } from 'lucide-react';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { api } from '@/lib/api-client';
 import type { Question } from '@/lib/types';
-import { toast } from 'sonner';
+import { useLanguage } from '@/hooks/use-language';
 
-const questionSchema = z.object({
-  text: z.string().min(5, 'Question must be at least 5 characters'),
-  type: z.enum(['multiple_choice', 'true_false', 'image', 'audio']),
-  points: z.number().min(1).max(100),
-  timer: z.number().min(5).max(300),
-  explanation: z.string().optional(),
-});
-
-type QuestionFormValues = z.infer<typeof questionSchema>;
-
-export default function QuestionEditorPage() {
+export default function QuestionViewPage() {
   const params = useParams();
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const { language } = useLanguage();
 
-  const isNew = params.id === 'new' || params.id === 'create';
-
-  const { data: questionResult, isLoading } = useQuery<{ data: Question }>({
+  const { data: question, isLoading } = useQuery<Question>({
     queryKey: ['questions', params.id],
     queryFn: () => api.get(`/questions/${params.id}`),
-    enabled: !isNew
   });
 
-  const existing = questionResult?.data || questionResult || null;
+  if (isLoading) {
+    return (
+      <DashboardShell>
+        <PageHeader title={language === 'ku' ? 'زانیاری پرسیار' : 'Question Details'} description={language === 'ku' ? 'چاوەڕێ بکە...' : 'Loading question details...'} />
+      </DashboardShell>
+    );
+  }
 
-  const [options, setOptions] = useState<any[]>(
-    [{ id: 'a', text: '', isCorrect: true }, { id: 'b', text: '', isCorrect: false }]
-  );
-  const [correctOption, setCorrectOption] = useState('a');
+  if (!question) {
+    return (
+      <DashboardShell>
+        <PageHeader title={language === 'ku' ? 'نەدۆزرایەوە' : 'Not Found'} description={language === 'ku' ? 'پرسیارەکە نەدۆزرایەوە.' : 'Question not found.'} />
+        <Button onClick={() => router.back()} variant="outline">{language === 'ku' ? 'گەڕانەوە' : 'Go Back'}</Button>
+      </DashboardShell>
+    );
+  }
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors, isSubmitting },
-    reset,
-  } = useForm<QuestionFormValues>({
-    resolver: zodResolver(questionSchema),
-    defaultValues: {
-      text: '',
-      type: 'multiple_choice',
-      points: 10,
-      timer: 30,
-      explanation: '',
-    },
-  });
-
-  useEffect(() => {
-    if (existing) {
-      reset({
-        text: existing.text,
-        type: existing.type,
-        points: existing.points,
-        timer: existing.timer,
-        explanation: existing.explanation,
-      });
-      if (existing.options && existing.options.length > 0) {
-        setOptions(existing.options);
-        setCorrectOption(existing.options.find((o: any) => o.isCorrect)?.id ?? 'a');
-      }
-    }
-  }, [existing, reset]);
-
-  const updateMutation = useMutation({
-    mutationFn: (values: any) => {
-      if (isNew) return api.post('/questions', values);
-      return api.put(`/questions/${params.id}`, values);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['questions'] });
-      toast.success('Question saved');
-      router.push('/questions');
-    }
-  });
-
-  const type = watch('type');
-
-  const addOption = () => {
-    setOptions((prev) => [
-      ...prev,
-      { id: String.fromCharCode(97 + prev.length), text: '', isCorrect: false },
-    ]);
-  };
-
-  const removeOption = (id: string) => {
-    setOptions((prev) => prev.filter((o) => o.id !== id));
-  };
-
-  const onSubmit = (values: QuestionFormValues) => {
-    updateMutation.mutate({ ...values, options });
-  };
+  const options = Array.isArray(question.options) ? question.options : [];
 
   return (
     <DashboardShell>
       <PageHeader
-        title="Question Editor"
-        description="Edit question details, options, and settings"
-        breadcrumbs={[
-          { label: 'Home', href: '/dashboard' },
-          { label: 'Questions', href: '/questions' },
-          { label: 'Editor' },
-        ]}
+        title={language === 'ku' ? 'زانیاری پرسیار' : 'Question Details'}
+        description={language === 'ku' ? 'پێداچوونەوە بە زانیارییەکان و وەڵامەکانی پرسیارەکە (وێب بێ دیاریکردنی وەڵامی ڕاست)' : 'Review question details and options'}
         actions={
-          <Button variant="outline" onClick={() => router.back()}>
-            <ArrowLeft className="me-2 h-4 w-4 rtl:rotate-180" /> Back
+          <Button variant="outline" onClick={() => router.back()} className="rounded-full shadow-sm">
+            <ArrowLeft className="me-2 h-4 w-4 rtl:rotate-180" /> {language === 'ku' ? 'گەڕانەوە' : 'Back'}
           </Button>
         }
       />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Question</CardTitle>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="border-t-4 border-t-primary shadow-md">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl">{language === 'ku' ? 'دەقی پرسیار' : 'Question Text'}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Question Text</Label>
-                <Textarea rows={3} placeholder="Enter your question" {...register('text')} />
-                {errors.text && <p className="text-xs text-destructive">{errors.text.message}</p>}
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label>Type</Label>
-                  <Select
-                    value={watch('type')}
-                    onValueChange={(v) => setValue('type', v as QuestionFormValues['type'])}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
-                      <SelectItem value="true_false">True / False</SelectItem>
-                      <SelectItem value="image">Image Question</SelectItem>
-                      <SelectItem value="audio">Audio Question</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Points</Label>
-                  <Input type="number" {...register('points', { valueAsNumber: true })} />
-                  {errors.points && <p className="text-xs text-destructive">{errors.points.message}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label>Timer (sec)</Label>
-                  <Input type="number" {...register('timer', { valueAsNumber: true })} />
-                  {errors.timer && <p className="text-xs text-destructive">{errors.timer.message}</p>}
-                </div>
-              </div>
+            <CardContent>
+              <p className="text-xl font-medium leading-relaxed bg-muted/20 p-6 rounded-xl border">{question.text}</p>
             </CardContent>
           </Card>
 
-          {(type === 'image' || type === 'audio') && (
-            <Card>
+          {(question.type === 'image') && (
+            <Card className="shadow-md">
               <CardHeader>
-                <CardTitle className="text-base">Media Upload</CardTitle>
+                <CardTitle className="text-base">{language === 'ku' ? 'میدیا' : 'Media'}</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="rounded-lg border-2 border-dashed border-border p-8 text-center">
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    {type === 'image' ? <ImageIcon className="h-10 w-10" /> : <Mic className="h-10 w-10" />}
-                    <p className="text-sm">Click or drag to upload {type}</p>
-                    <Button type="button" variant="outline" size="sm">Choose File</Button>
+                <div className="rounded-xl border-2 border-dashed border-border p-8 text-center bg-muted/10">
+                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                    <ImageIcon className="h-12 w-12 opacity-50" />
+                    <p className="text-sm font-medium">{language === 'ku' ? 'وێنە یان دەنگی پرسیار لێرە دەردەکەوێت' : 'Media attachment will appear here'}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          <Card>
+          <Card className="shadow-md">
             <CardHeader>
-              <CardTitle className="text-base">Options</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Layers className="h-5 w-5 text-primary" /> {language === 'ku' ? 'وەڵامەکان (هەڵبژاردنەکان)' : 'Options'}
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {type === 'true_false' ? (
-                <RadioGroup
-                  value={correctOption}
-                  onValueChange={setCorrectOption}
-                  className="grid grid-cols-2 gap-3"
-                >
-                  {['True', 'False'].map((label, i) => (
-                    <div key={i} className="flex items-center gap-2 rounded-lg border p-3">
-                      <RadioGroupItem value={i === 0 ? 'a' : 'b'} id={`tf-${i}`} />
-                      <Label htmlFor={`tf-${i}`} className="cursor-pointer">{label}</Label>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                {options.slice(0, 4).map((opt: any, i: number) => {
+                  const letters = ['A', 'B', 'C', 'D'];
+                  return (
+                    <div key={opt.id} className="flex items-center gap-4 p-4 rounded-xl border bg-card shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 border border-primary/20 text-lg font-bold text-primary">
+                        {letters[i]}
+                      </div>
+                      <span className="text-lg font-medium">{opt.text}</span>
                     </div>
-                  ))}
-                </RadioGroup>
-              ) : (
-                <>
-                  {options.map((opt) => (
-                    <div key={opt.id} className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setCorrectOption(opt.id)}
-                        className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-colors ${
-                          correctOption === opt.id
-                            ? 'border-success bg-success text-success-foreground'
-                            : 'border-border'
-                        }`}
-                      >
-                        {correctOption === opt.id && <span className="text-xs">✓</span>}
-                      </button>
-                      <Input
-                        placeholder={`Option ${opt.id.toUpperCase()}`}
-                        value={opt.text}
-                        onChange={(e) =>
-                          setOptions((prev) =>
-                            prev.map((o) => (o.id === opt.id ? { ...o, text: e.target.value } : o))
-                          )
-                        }
-                      />
-                      {options.length > 2 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9"
-                          onClick={() => removeOption(opt.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                  {options.length < 6 && (
-                    <Button type="button" variant="outline" size="sm" onClick={addOption}>
-                      <Plus className="me-2 h-4 w-4" /> Add Option
-                    </Button>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Explanation</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                rows={3}
-                placeholder="Explain the correct answer (shown after answering)"
-                {...register('explanation')}
-              />
+                  );
+                })}
+                {options.length === 0 && (
+                  <p className="text-center text-muted-foreground py-8">{language === 'ku' ? 'هیچ وەڵامێک نییە.' : 'No options available.'}</p>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
 
         <div className="space-y-6">
-          <Card>
+          <Card className="shadow-md">
             <CardHeader>
-              <CardTitle className="text-base">Summary</CardTitle>
+              <CardTitle className="text-lg">{language === 'ku' ? 'کورتەی پرسیار' : 'Question Summary'}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Type</span>
-                <span className="font-medium capitalize">{type.replace('_', ' ')}</span>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between items-center p-3 rounded-lg bg-muted/30">
+                <span className="text-muted-foreground font-medium">{language === 'ku' ? 'جۆر' : 'Type'}</span>
+                <Badge variant="outline" className="capitalize bg-background font-semibold">
+                  {question.type === 'multiple_choice' ? (language === 'ku' ? 'هەڵبژاردن' : 'Multiple Choice') : (language === 'ku' ? 'وێنە' : 'Image')}
+                </Badge>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Points</span>
-                <span className="font-medium">{watch('points')} pts</span>
+              <div className="flex justify-between items-center p-3 rounded-lg bg-muted/30">
+                <span className="text-muted-foreground font-medium">{language === 'ku' ? 'وەڵامەکان' : 'Options'}</span>
+                <span className="font-bold">4</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Timer</span>
-                <span className="font-medium">{watch('timer')}s</span>
+              <div className="flex justify-between items-center p-3 rounded-lg bg-muted/30">
+                <span className="text-muted-foreground font-medium">{language === 'ku' ? 'جۆری بابەت' : 'Category'}</span>
+                {question.categoryName ? (
+                  <Badge variant="secondary" className="bg-background">{question.categoryName}</Badge>
+                ) : (
+                  <span className="font-medium">—</span>
+                )}
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Options</span>
-                <span className="font-medium">{type === 'true_false' ? 2 : options.length}</span>
+              <Separator />
+              <div className="flex justify-between items-center p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/50">
+                <span className="text-amber-700 dark:text-amber-500 font-medium flex items-center gap-2"><Trophy className="h-4 w-4" /> {language === 'ku' ? 'خاڵ' : 'Points'}</span>
+                <span className="font-bold text-amber-700 dark:text-amber-500 text-lg">{question.points}</span>
+              </div>
+              <div className="flex justify-between items-center p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/50">
+                <span className="text-blue-700 dark:text-blue-500 font-medium flex items-center gap-2"><Clock className="h-4 w-4" /> {language === 'ku' ? 'کات' : 'Timer'}</span>
+                <span className="font-bold text-blue-700 dark:text-blue-500 text-lg">{question.timer}s</span>
               </div>
             </CardContent>
           </Card>
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            <Save className="me-2 h-4 w-4" /> Save Question
-          </Button>
         </div>
-      </form>
+      </div>
     </DashboardShell>
   );
 }

@@ -20,6 +20,7 @@ const headerTranslations: Record<string, string> = {
   'categories': 'جۆری بابەتەکان',
   'sponsors': 'سپۆنسەرەکان',
   'leaderboard': 'ڕیزبەندی',
+  'winners': 'براوەکان',
   'users': 'بەکارهێنەران',
   'audit-logs': 'لۆگەکانی چاودێری',
   'media-library': 'کتێبخانەی میدیا',

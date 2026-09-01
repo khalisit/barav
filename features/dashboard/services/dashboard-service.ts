@@ -8,22 +8,28 @@ export interface DashboardStats {
   onlineUsersTrend: number;
   runningQuizzes: number;
   runningQuizzesTrend: number;
-  scheduledQuizzes: number;
+  scheduledQuizzes: number; // Will map to 'ready' quizzes
   scheduledQuizzesTrend: number;
-  finishedQuizzes: number;
-  finishedQuizzesTrend: number;
+  liveQuizzes: number;
+  liveQuizzesTrend: number;
   totalQuestions: number;
   totalQuestionsTrend: number;
   totalAnswers: number;
   totalAnswersTrend: number;
-  dailyRevenue: number;
+  dailyRevenueUsd: number;
+  dailyRevenueIqd: number;
   dailyRevenueTrend: number;
-  monthlyRevenue: number;
+  monthlyRevenueUsd: number;
+  monthlyRevenueIqd: number;
   monthlyRevenueTrend: number;
-  dailyExpense: number;
+  dailyExpenseUsd: number;
+  dailyExpenseIqd: number;
   dailyExpenseTrend: number;
-  monthlyExpense: number;
+  monthlyExpenseUsd: number;
+  monthlyExpenseIqd: number;
   monthlyExpenseTrend: number;
+  paidRewards: number;
+  unclaimedRewards: number;
   totalWinners: number;
   totalWinnersTrend: number;
 }
@@ -107,7 +113,7 @@ function groupRevenueByDate(revenues: any[], days: number = 30): ChartDataPoint[
   }
 
   revenues.forEach(r => {
-    if (r.date) {
+    if (r.date && (r.currency || 'USD') === 'USD') {
       const dateStr = new Date(r.date).toISOString().slice(0, 10);
       if (map.has(dateStr)) {
         map.set(dateStr, map.get(dateStr)! + Number(r.amount || 0));
@@ -168,24 +174,48 @@ function calculateTrend(current: number, previous: number): number {
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
-  const [usersRes, quizzesRes, questionsRes, revenueRes, leaderboardRes, expensesRes] = await Promise.all([
+  const [usersRes, quizzesRes, questionsRes, revenueRes, expensesRes, receiptsRes, answersCountRes] = await Promise.all([
     api.get<{ data: any[] }>('/users').catch(() => ({ data: [] })),
     api.get<{ data: any[] }>('/quizzes').catch(() => ({ data: [] })),
     api.get<{ data: any[] }>('/questions').catch(() => ({ data: [] })),
     api.get<{ data: any[] }>('/revenue').catch(() => ({ data: [] })),
-    api.get<{ data: any[] }>('/leaderboard-entries').catch(() => ({ data: [] })),
     api.get<{ data: any[] }>('/expenses').catch(() => ({ data: [] })),
+    api.get<any[]>('/receipts').catch(() => []),
+    api.get<{ count: number }>('/quiz-live/answers/count').catch(() => ({ count: 0 })),
   ]);
 
   const users = Array.isArray(usersRes?.data) ? usersRes.data : [];
   const quizzes = Array.isArray(quizzesRes?.data) ? quizzesRes.data : [];
   const questions = Array.isArray(questionsRes?.data) ? questionsRes.data : [];
   const revenues = Array.isArray(revenueRes?.data) ? revenueRes.data : [];
-  const leaderboard = Array.isArray(leaderboardRes?.data) ? leaderboardRes.data : [];
   const expenses = Array.isArray(expensesRes?.data) ? expensesRes.data : [];
+  const receipts = Array.isArray(receiptsRes) ? receiptsRes : [];
+  const realAnswersCount = answersCountRes?.count ?? 0;
 
-  const totalRevenue = revenues.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
-  const totalExpense = expenses.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+  const leaderboard = [...users]
+    .sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0))
+    .map((u, i) => ({
+      id: u.id,
+      rank: i + 1,
+      name: u.fullName || u.username,
+      avatarUrl: u.avatarKey,
+      totalPoints: u.totalPoints || 0,
+      quizzesWon: u.quizzesWon || 0,
+      quizzesPlayed: u.quizzesPlayed || 0,
+    }));
+
+  const sumAmountByCurrency = (list: any[], currency: 'USD' | 'IQD') => {
+    return list.reduce((acc, curr) => {
+      const cur = curr.currency || 'USD';
+      if (cur === currency) return acc + Number(curr.amount || 0);
+      return acc;
+    }, 0);
+  };
+
+  const totalRevenueUsd = sumAmountByCurrency(revenues, 'USD');
+  const totalRevenueIqd = sumAmountByCurrency(revenues, 'IQD');
+  const totalExpenseUsd = sumAmountByCurrency(expenses, 'USD');
+  const totalExpenseIqd = sumAmountByCurrency(expenses, 'IQD');
 
   const userGrowth = groupDataByDate(users, 'joinedAt', 30);
   const quizActivity = groupQuizActivityByDate(quizzes, 30);
@@ -207,8 +237,14 @@ export async function getDashboardData(): Promise<DashboardData> {
   const totalUsersTrend = calculateTrend(currentUsers, previousUsers);
 
   // Online Users Trend
-  const currentOnline = Math.floor(users.length * 0.1) || (users.length > 0 ? 1 : 0);
-  const previousOnline = Math.floor(previousUsers * 0.1) || (previousUsers > 0 ? 1 : 0);
+  let currentOnline = 0;
+  try {
+    const presenceRes = await api.get<{ success: boolean; onlineCount: number }>('/presence/count');
+    currentOnline = presenceRes.onlineCount || 0;
+  } catch (e) {
+    console.warn('Could not fetch presence count:', e);
+  }
+  const previousOnline = 0; // Or keep it simple for now, since previous online users isn't stored historically
   const onlineUsersTrend = calculateTrend(currentOnline, previousOnline);
 
   // Quizzes Trends
@@ -216,45 +252,50 @@ export async function getDashboardData(): Promise<DashboardData> {
   const previousRunning = quizzes.filter(q => q.status === 'running' && q.createdAt && new Date(q.createdAt) < fifteenDaysAgo).length;
   const runningQuizzesTrend = calculateTrend(currentRunning, previousRunning);
 
-  const currentScheduled = quizzes.filter(q => q.status === 'scheduled').length;
-  const previousScheduled = quizzes.filter(q => q.status === 'scheduled' && q.createdAt && new Date(q.createdAt) < fifteenDaysAgo).length;
+  const currentScheduled = quizzes.filter(q => q.status === 'ready').length;
+  const previousScheduled = quizzes.filter(q => q.status === 'ready' && q.createdAt && new Date(q.createdAt) < fifteenDaysAgo).length;
   const scheduledQuizzesTrend = calculateTrend(currentScheduled, previousScheduled);
 
-  const currentFinished = quizzes.filter(q => q.status === 'finished').length;
-  const previousFinished = quizzes.filter(q => q.status === 'finished' && q.createdAt && new Date(q.createdAt) < fifteenDaysAgo).length;
-  const finishedQuizzesTrend = calculateTrend(currentFinished, previousFinished);
+  const currentLive = quizzes.filter(q => q.status === 'live').length;
+  const previousLive = quizzes.filter(q => q.status === 'live' && q.createdAt && new Date(q.createdAt) < fifteenDaysAgo).length;
+  const liveQuizzesTrend = calculateTrend(currentLive, previousLive);
 
   // Questions Trend
   const currentQuestions = questions.length;
   const previousQuestions = questions.filter(q => q.createdAt && new Date(q.createdAt) < fifteenDaysAgo).length;
   const totalQuestionsTrend = calculateTrend(currentQuestions, previousQuestions);
 
-  // Answers Trend
-  const currentAnswers = questions.length * 4;
-  const previousAnswers = previousQuestions * 4;
+  // Answers Trend (real)
+  const currentAnswers = realAnswersCount;
+  const previousAnswers = 0;
   const totalAnswersTrend = calculateTrend(currentAnswers, previousAnswers);
 
-  // Revenue Trends
-  const currentPeriodRevenue = revenues.filter(r => r.date && new Date(r.date) >= fifteenDaysAgo).reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
-  const previousPeriodRevenue = revenues.filter(r => r.date && new Date(r.date) >= thirtyDaysAgo && new Date(r.date) < fifteenDaysAgo).reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+  // Rewards calculations (real)
+  const totalRewards = users.reduce((acc, u) => acc + Number(u.totalRewards || 0), 0);
+  const paidRewards = receipts.filter(r => r.status === 'PAID').reduce((acc, r) => acc + Number(r.amount || 0), 0);
+  const unclaimedRewards = Math.max(0, totalRewards - paidRewards);
 
-  const currentDailyRevenue = currentPeriodRevenue / 15;
-  const previousDailyRevenue = previousPeriodRevenue / 15;
-  const dailyRevenueTrend = calculateTrend(currentDailyRevenue, previousDailyRevenue);
-  const monthlyRevenueTrend = calculateTrend(currentPeriodRevenue, previousPeriodRevenue);
+  // Revenue Trends (grounded on USD)
+  const currentPeriodRevenueUsd = revenues.filter(r => r.date && new Date(r.date) >= fifteenDaysAgo && (r.currency || 'USD') === 'USD').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+  const previousPeriodRevenueUsd = revenues.filter(r => r.date && new Date(r.date) >= thirtyDaysAgo && new Date(r.date) < fifteenDaysAgo && (r.currency || 'USD') === 'USD').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
-  // Expense Trends
-  const currentPeriodExpense = expenses.filter(e => e.date && new Date(e.date) >= fifteenDaysAgo).reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
-  const previousPeriodExpense = expenses.filter(e => e.date && new Date(e.date) >= thirtyDaysAgo && new Date(e.date) < fifteenDaysAgo).reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+  const currentDailyRevenueUsd = currentPeriodRevenueUsd / 15;
+  const previousDailyRevenueUsd = previousPeriodRevenueUsd / 15;
+  const dailyRevenueTrend = calculateTrend(currentDailyRevenueUsd, previousDailyRevenueUsd);
+  const monthlyRevenueTrend = calculateTrend(currentPeriodRevenueUsd, previousPeriodRevenueUsd);
 
-  const currentDailyExpense = currentPeriodExpense / 15;
-  const previousDailyExpense = previousPeriodExpense / 15;
-  const dailyExpenseTrend = calculateTrend(currentDailyExpense, previousDailyExpense);
-  const monthlyExpenseTrend = calculateTrend(currentPeriodExpense, previousPeriodExpense);
+  // Expense Trends (grounded on USD)
+  const currentPeriodExpenseUsd = expenses.filter(e => e.date && new Date(e.date) >= fifteenDaysAgo && (e.currency || 'USD') === 'USD').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+  const previousPeriodExpenseUsd = expenses.filter(e => e.date && new Date(e.date) >= thirtyDaysAgo && new Date(e.date) < fifteenDaysAgo && (e.currency || 'USD') === 'USD').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+
+  const currentDailyExpenseUsd = currentPeriodExpenseUsd / 15;
+  const previousDailyExpenseUsd = previousPeriodExpenseUsd / 15;
+  const dailyExpenseTrend = calculateTrend(currentDailyExpenseUsd, previousDailyExpenseUsd);
+  const monthlyExpenseTrend = calculateTrend(currentPeriodExpenseUsd, previousPeriodExpenseUsd);
 
   // Winners Trend
   const currentWinners = leaderboard.filter(e => e.quizzesWon > 0).length || (leaderboard.length > 0 ? 1 : 0);
-  const previousWinners = Math.max(1, Math.round(currentWinners * (previousFinished / Math.max(1, currentFinished))));
+  const previousWinners = Math.max(1, Math.round(currentWinners * (previousLive / Math.max(1, currentLive))));
   const totalWinnersTrend = calculateTrend(currentWinners, previousWinners);
 
   return {
@@ -267,20 +308,26 @@ export async function getDashboardData(): Promise<DashboardData> {
       runningQuizzesTrend,
       scheduledQuizzes: currentScheduled,
       scheduledQuizzesTrend,
-      finishedQuizzes: currentFinished,
-      finishedQuizzesTrend,
+      liveQuizzes: currentLive,
+      liveQuizzesTrend: liveQuizzesTrend,
       totalQuestions: currentQuestions,
       totalQuestionsTrend,
       totalAnswers: currentAnswers,
       totalAnswersTrend,
-      dailyRevenue: totalRevenue / 30,
+      dailyRevenueUsd: totalRevenueUsd / 30,
+      dailyRevenueIqd: totalRevenueIqd / 30,
       dailyRevenueTrend,
-      monthlyRevenue: totalRevenue,
+      monthlyRevenueUsd: totalRevenueUsd,
+      monthlyRevenueIqd: totalRevenueIqd,
       monthlyRevenueTrend,
-      dailyExpense: totalExpense / 30,
+      dailyExpenseUsd: totalExpenseUsd / 30,
+      dailyExpenseIqd: totalExpenseIqd / 30,
       dailyExpenseTrend,
-      monthlyExpense: totalExpense,
+      monthlyExpenseUsd: totalExpenseUsd,
+      monthlyExpenseIqd: totalExpenseIqd,
       monthlyExpenseTrend,
+      paidRewards,
+      unclaimedRewards,
       totalWinners: currentWinners,
       totalWinnersTrend,
     },

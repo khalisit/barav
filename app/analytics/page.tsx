@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Users, HelpCircle, DollarSign, TrendingUp, TrendingDown, Trophy } from 'lucide-react';
+import { Users, HelpCircle, DollarSign, TrendingUp, TrendingDown, Trophy, Gift } from 'lucide-react';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
@@ -25,7 +25,7 @@ export default function AnalyticsPage() {
   if (isLoading || !data) {
     return (
       <DashboardShell>
-        <PageHeader title="Analytics" description={language === 'ku' ? 'بارکردنی شیکارییەکان...' : 'Loading analytics...'} />
+        <PageHeader title={language === 'ku' ? 'شیکارییەکان' : 'Analytics'} description={language === 'ku' ? 'بارکردنی شیکارییەکان...' : 'Loading analytics...'} />
         <LoadingSpinner />
       </DashboardShell>
     );
@@ -34,9 +34,9 @@ export default function AnalyticsPage() {
   return (
     <DashboardShell>
       <PageHeader
-        title="Analytics"
-        description="Deep insights into platform performance and user engagement"
-        breadcrumbs={[{ label: 'Home', href: '/dashboard' }, { label: 'Analytics' }]}
+        title={language === 'ku' ? 'شیکارییەکان' : 'Analytics'}
+        description={language === 'ku' ? 'زانیاری و شیکاریی قوڵ لەسەر کارکردنی پلاتفۆرمەکە و بەشداریی بەکارهێنەران' : 'Deep insights into platform performance and user engagement'}
+        breadcrumbs={[{ label: language === 'ku' ? 'سەرەکی' : 'Home', href: '/dashboard' }, { label: language === 'ku' ? 'شیکارییەکان' : 'Analytics' }]}
       />
 
       {/* Stats Cards Grid - 3 Columns for perfect width, consistency, and identical heights */}
@@ -66,18 +66,18 @@ export default function AnalyticsPage() {
         />
         <StatCard
           title={language === 'ku' ? 'داهات' : 'Revenue'}
-          value={data.stats.monthlyRevenue}
+          value={`$${Math.round(data.stats.monthlyRevenueUsd).toLocaleString()} / ${Math.round(data.stats.monthlyRevenueIqd).toLocaleString()} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
           icon={DollarSign}
-          format="currency"
+          format="raw"
           change={data.stats.monthlyRevenueTrend}
           accent="success"
           delay={0.15}
         />
         <StatCard
           title={language === 'ku' ? 'خەرجییەکان' : 'Expenses'}
-          value={data.stats.monthlyExpense}
+          value={`$${Math.round(data.stats.monthlyExpenseUsd).toLocaleString()} / ${Math.round(data.stats.monthlyExpenseIqd).toLocaleString()} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
           icon={TrendingDown}
-          format="currency"
+          format="raw"
           change={data.stats.monthlyExpenseTrend}
           accent="destructive"
           delay={0.2}
@@ -89,6 +89,20 @@ export default function AnalyticsPage() {
           change={data.stats.totalWinnersTrend}
           accent="warning"
           delay={0.25}
+        />
+        <StatCard
+          title={language === 'ku' ? 'خەڵاتی دراو' : 'Paid Rewards'}
+          value={`${Math.round(data.stats.paidRewards).toLocaleString('en-US')} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
+          icon={Gift}
+          accent="success"
+          delay={0.3}
+        />
+        <StatCard
+          title={language === 'ku' ? 'خەڵاتی نەدراو' : 'Unclaimed Rewards'}
+          value={`${Math.round(data.stats.unclaimedRewards).toLocaleString('en-US')} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
+          icon={Gift}
+          accent="warning"
+          delay={0.32}
         />
       </div>
 

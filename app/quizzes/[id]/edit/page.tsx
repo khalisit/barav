@@ -12,14 +12,7 @@ export default function EditQuizPage() {
   const _quizId = quizId;
   return (
     <div>
-      <div className="mb-4 flex items-center">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4 rtl:rotate-180" /> Back to quizzes
-        </button>
-      </div>
+
       <CreateQuizPage />
     </div>
   );

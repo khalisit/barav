@@ -16,6 +16,8 @@ import {
   UserCircle,
   Wallet,
   Star,
+  Trophy,
+  MessageCircle,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -53,12 +55,14 @@ export const navSections: NavSection[] = [
     label: 'Compete',
     items: [
       { label: 'Leaderboard', href: '/leaderboard', icon: Crown },
+      { label: 'Winners', href: '/winners', icon: Trophy },
     ],
   },
   {
     label: 'Users',
     items: [
       { label: 'Users', href: '/users', icon: Users },
+      { label: 'Support', href: '/support', icon: MessageCircle },
       { label: 'Audit Logs', href: '/audit-logs', icon: ScrollText },
     ],
   },
@@ -67,7 +71,6 @@ export const navSections: NavSection[] = [
     items: [
       { label: 'Storage', href: '/storage', icon: HardDrive },
       { label: 'Notifications', href: '/notifications', icon: Bell },
-      { label: 'Settings', href: '/settings', icon: Settings },
       { label: 'Profile', href: '/profile', icon: UserCircle },
     ],
   },

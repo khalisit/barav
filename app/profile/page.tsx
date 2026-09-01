@@ -72,16 +72,19 @@ export default function ProfilePage() {
         const formData = new FormData();
         formData.append('file', selectedFile);
 
+        formData.append('folder', 'avatars');
+
         // Upload to Cloudflare Worker R2 endpoint
         const client = (await import('@/lib/api-client')).default;
-        const uploadRes = await client.post('/media-items/upload', formData, {
+        const uploadRes = await client.post('/admin/storage/upload', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         
-        if (uploadRes.data?.success) {
+        if (uploadRes.data?.success || uploadRes.data?.key) {
           // Send only the key to the backend to keep the database clean
-          finalAvatarUrl = uploadRes.data.data.key;
-          finalAvatarKey = uploadRes.data.data.key;
+          const key = uploadRes.data.key || uploadRes.data.data?.key || '';
+          finalAvatarUrl = key;
+          finalAvatarKey = key;
         }
       }
 

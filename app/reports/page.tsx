@@ -173,7 +173,7 @@ export default function ReportsPage() {
     () => [
       {
         accessorKey: 'title',
-        header: 'Report',
+        header: language === 'ku' ? 'ڕاپۆرت' : 'Report',
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <FileBarChart className="h-4 w-4 text-muted-foreground" />
@@ -183,7 +183,7 @@ export default function ReportsPage() {
       },
       {
         accessorKey: 'type',
-        header: 'Type',
+        header: language === 'ku' ? 'جۆر' : 'Type',
         cell: ({ row }) => (
           <Badge variant="outline" className="capitalize">
             {row.original.type === 'users' && language === 'ku' ? 'بەکارهێنەران' :
@@ -195,19 +195,19 @@ export default function ReportsPage() {
       },
       {
         accessorKey: 'format',
-        header: 'Format',
+        header: language === 'ku' ? 'فۆرمات' : 'Format',
         cell: ({ row }) => (
           <Badge variant="secondary" className="uppercase text-xs">{row.original.format}</Badge>
         ),
       },
       {
         accessorKey: 'status',
-        header: 'Status',
+        header: language === 'ku' ? 'دۆخ' : 'Status',
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
         accessorKey: 'createdAt',
-        header: 'Generated',
+        header: language === 'ku' ? 'دروستکراوە لە' : 'Generated',
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground">{formatDate(row.original.createdAt)}</span>
         ),
@@ -248,9 +248,9 @@ export default function ReportsPage() {
   return (
     <DashboardShell>
       <PageHeader
-        title="Reports"
-        description="Generate and download platform reports"
-        breadcrumbs={[{ label: 'Home', href: '/dashboard' }, { label: 'Reports' }]}
+        title={language === 'ku' ? 'ڕاپۆرتەکان' : 'Reports'}
+        description={language === 'ku' ? 'دروستکردن و داگرتنی ڕاپۆرتەکانی سیستەم' : 'Generate and download platform reports'}
+        breadcrumbs={[{ label: language === 'ku' ? 'سەرەکی' : 'Home', href: '/dashboard' }, { label: language === 'ku' ? 'ڕاپۆرتەکان' : 'Reports' }]}
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="me-2 h-4 w-4" /> {language === 'ku' ? 'دروستکردنی ڕاپۆرت' : 'Generate Report'}
