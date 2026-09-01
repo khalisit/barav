@@ -11,12 +11,12 @@ export function getMediaUrl(pathOrUrl: string | null | undefined): string {
     return pathOrUrl;
   }
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.baravquiz.com/api';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://barav-backend.arkanstudiokrd.workers.dev/api';
     const origin = new URL(baseUrl).origin;
     const cleanPath = pathOrUrl.startsWith('/') ? pathOrUrl.slice(1) : pathOrUrl;
     return `${origin}/media/${cleanPath}`;
   } catch (e) {
     const cleanPath = pathOrUrl.startsWith('/') ? pathOrUrl.slice(1) : pathOrUrl;
-    return `https://api.baravquiz.com/media/${cleanPath}`;
+    return `https://barav-backend.arkanstudiokrd.workers.dev/media/${cleanPath}`;
   }
 }
