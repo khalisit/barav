@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Mail, Calendar, Trophy, Gamepad2, Target, Ban, Trash2, CheckCircle, RotateCcw, AlertTriangle, Pencil, Phone, FastForward } from 'lucide-react';
@@ -32,12 +32,13 @@ import type { User } from '@/lib/types';
 import { formatDate, formatDateTime, getInitials } from '@/lib/format';
 import { toast } from 'sonner';
 import { useLanguage } from '@/hooks/use-language';
+import { LoadingSpinner } from '@/components/shared/loading-spinner';
 
-export default function UserDetailsPage() {
+function UserDetailsContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const defaultTab = searchParams.get('tab') || 'activity';
+  const defaultTab = searchParams ? (searchParams.get('tab') || 'activity') : 'activity';
   const queryClient = useQueryClient();
   const { language } = useLanguage();
 
@@ -49,13 +50,13 @@ export default function UserDetailsPage() {
   // Extract user safely
   const user = userResult?.data || (userResult as any) || ({} as any);
 
-  const { data: activitiesResult } = useQuery({
+  const { data: activitiesResult } = useQuery<{ data: any[] }>({
     queryKey: ['users', params.id, 'activities'],
     queryFn: () => api.get(`/users/${params.id}/activities`),
     enabled: !!params.id
   });
 
-  const activityData = activitiesResult?.data || [];
+  const activityData = activitiesResult?.data || (Array.isArray(activitiesResult) ? activitiesResult : []);
 
   // States for different confirmation dialogs
   const [statusTarget, setStatusTarget] = useState<'banned' | 'active' | 'inactive' | 'deleted' | null>(null);
@@ -359,5 +360,17 @@ export default function UserDetailsPage() {
         </DialogContent>
       </Dialog>
     </DashboardShell>
+  );
+}
+
+export default function UserDetailsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-full items-center justify-center">
+        <LoadingSpinner className="scale-150" />
+      </div>
+    }>
+      <UserDetailsContent />
+    </Suspense>
   );
 }
