@@ -1,5 +1,4 @@
 'use client';
-export const runtime = 'edge';
 
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
