@@ -178,6 +178,20 @@ export default function DashboardPage() {
           accent="warning"
           delay={0.52}
         />
+        <StatCard
+          title={language === 'ku' ? 'پشتیوانی نوێ' : 'Unread Support'}
+          value={data.stats.unreadSupportMessages}
+          icon={MessageSquare}
+          accent="destructive"
+          delay={0.54}
+        />
+        <StatCard
+          title={language === 'ku' ? 'گشت پشتیوانیەکان' : 'Total Support'}
+          value={data.stats.totalSupportMessages}
+          icon={HelpCircle}
+          accent="info"
+          delay={0.56}
+        />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">

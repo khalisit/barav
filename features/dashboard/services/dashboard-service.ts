@@ -32,6 +32,8 @@ export interface DashboardStats {
   unclaimedRewards: number;
   totalWinners: number;
   totalWinnersTrend: number;
+  totalSupportMessages: number;
+  unreadSupportMessages: number;
 }
 
 export interface DashboardData {
@@ -174,7 +176,7 @@ function calculateTrend(current: number, previous: number): number {
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
-  const [usersRes, quizzesRes, questionsRes, revenueRes, expensesRes, receiptsRes, answersCountRes] = await Promise.all([
+  const [usersRes, quizzesRes, questionsRes, revenueRes, expensesRes, receiptsRes, answersCountRes, supportChatsRes] = await Promise.all([
     api.get<{ data: any[] }>('/users').catch(() => ({ data: [] })),
     api.get<{ data: any[] }>('/quizzes').catch(() => ({ data: [] })),
     api.get<{ data: any[] }>('/questions').catch(() => ({ data: [] })),
@@ -182,6 +184,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     api.get<{ data: any[] }>('/expenses').catch(() => ({ data: [] })),
     api.get<any[]>('/receipts').catch(() => []),
     api.get<{ count: number }>('/quiz-live/answers/count').catch(() => ({ count: 0 })),
+    api.get<{ data: any[] }>('/support/users').catch(() => ({ data: [] })),
   ]);
 
   const users = Array.isArray(usersRes?.data) ? usersRes.data : [];
@@ -298,6 +301,10 @@ export async function getDashboardData(): Promise<DashboardData> {
   const previousWinners = Math.max(1, Math.round(currentWinners * (previousLive / Math.max(1, currentLive))));
   const totalWinnersTrend = calculateTrend(currentWinners, previousWinners);
 
+  const supportChats = Array.isArray(supportChatsRes?.data) ? supportChatsRes.data : [];
+  const totalSupportMessages = supportChats.length;
+  const unreadSupportMessages = supportChats.reduce((acc, chat) => acc + (Number(chat.unreadCount) || 0), 0);
+
   return {
     stats: {
       totalUsers: currentUsers,
@@ -330,6 +337,8 @@ export async function getDashboardData(): Promise<DashboardData> {
       unclaimedRewards,
       totalWinners: currentWinners,
       totalWinnersTrend,
+      totalSupportMessages,
+      unreadSupportMessages,
     },
     userGrowth,
     quizActivity,
