@@ -35,7 +35,7 @@ export function usePresence() {
 
       const clientId = getClientId();
       const token = localStorage.getItem('barav-access-token');
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'https://barav-backend.khalistanya.workers.dev/api';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.baravquiz.com/api';
       const wsBase = apiUrl.replace(/^http/, 'ws').replace(/\/$/, '');
       const wsUrl = `${wsBase}/presence/ws?clientId=${encodeURIComponent(clientId)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
 

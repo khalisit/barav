@@ -11,7 +11,7 @@ import { formatDateTime } from '@/lib/format';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://barav-backend.khalistanya.workers.dev';
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.baravquiz.com';
 
 function resolveMediaUrl(key?: string | null): string {
   if (!key) return '';

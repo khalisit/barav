@@ -34,7 +34,7 @@ export default function SupportPage() {
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://barav-backend.khalistanya.workers.dev';
+  const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.baravquiz.com';
 
   const resolveAvatarUrl = (key?: string | null) => {
     if (!key) return undefined;

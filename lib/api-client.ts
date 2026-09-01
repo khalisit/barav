@@ -15,7 +15,7 @@ if (typeof window !== 'undefined') {
 }
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? 'https://barav-backend.khalistanya.workers.dev/api';
+  process.env.NEXT_PUBLIC_API_URL ?? 'https://api.baravquiz.com/api';
 
 export class ApiError extends Error {
   status: number;

@@ -35,7 +35,7 @@ function resolveAvatarUrl(avatarVal?: string | null): string | undefined {
     if (cleanKey.startsWith('avatars/')) cleanKey = `users/${cleanKey}`;
     else cleanKey = `users/avatars/${cleanKey}`;
   }
-  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') ?? 'https://barav-backend.khalistanya.workers.dev';
+  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') ?? 'https://api.baravquiz.com';
   return `${apiBase}/api/media/${cleanKey}`;
 }
 

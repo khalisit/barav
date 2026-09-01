@@ -41,7 +41,7 @@ function getMediaUrl(path: string | null | undefined): string {
   if (path.startsWith('http://') || path.startsWith('https://')) return path;
   const baseUrl =
     process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') ||
-    'https://barav-backend.khalistanya.workers.dev';
+    'https://api.baravquiz.com';
   return `${baseUrl}/media/${path.replace(/^\//, '')}`;
 }
 

@@ -56,7 +56,7 @@ interface UploadedFile {
   isUsed?: boolean;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://barav-backend.khalistanya.workers.dev/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.baravquiz.com/api';
 
 const getMediaUrl = (key: string) => {
   try {
@@ -65,7 +65,7 @@ const getMediaUrl = (key: string) => {
     return `${origin}/media/${cleanKey}`;
   } catch (e) {
     const cleanKey = key.startsWith('/') ? key.slice(1) : key;
-    return `https://barav-backend.khalistanya.workers.dev/media/${cleanKey}`;
+    return `https://api.baravquiz.com/media/${cleanKey}`;
   }
 };
 
