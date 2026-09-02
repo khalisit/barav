@@ -58,7 +58,10 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+        // Delay setting hydrated to true until after first render to prevent Next.js hydration mismatch
+        setTimeout(() => {
+          state?.setHasHydrated(true);
+        }, 0);
       },
     }
   )
