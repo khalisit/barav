@@ -1,3 +1,5 @@
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -11,13 +13,14 @@ import { formatDateTime } from '@/lib/format';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.baravquiz.com';
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || (process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL).origin : 'https://api.baravquiz.com');
 
 function resolveMediaUrl(key?: string | null): string {
   if (!key) return '';
   if (key.startsWith('http')) return key;
-  if (key.startsWith('/media/')) return `${BASE_URL}${key}`;
-  return `${BASE_URL}/media/${key.replace(/^\/+/, '')}`;
+  let cleanKey = key.replace(/^\/+/, '');
+  if (cleanKey.startsWith('media/')) cleanKey = cleanKey.replace(/^media\//, '');
+  return `${BASE_URL}/media/${cleanKey}`;
 }
 
 export function SupportChat({ userId, fullHeight = false }: { userId: string; fullHeight?: boolean }) {
@@ -34,7 +37,7 @@ export function SupportChat({ userId, fullHeight = false }: { userId: string; fu
     refetchInterval: 1500,
   });
 
-  const messages = messagesData?.data || [];
+  const messages = (messagesData as any)?.data || [];
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -144,9 +147,20 @@ export function SupportChat({ userId, fullHeight = false }: { userId: string; fu
                         </div>
                       )}
                     </div>
-                    <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                      {formatDateTime(msg.createdAt)}
-                    </span>
+                    <div className="flex items-center gap-1 mt-1 px-1">
+                      <span className="text-[10px] text-muted-foreground">
+                        {formatDateTime(msg.createdAt)}
+                      </span>
+                      {isAdmin && (
+                        <span className={msg.isRead ? "text-primary" : "text-muted-foreground opacity-50"}>
+                          {msg.isRead ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 7 17l-5-5" /><path d="m22 10-7.5 7.5L13 16" /></svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                          )}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

@@ -61,10 +61,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.baravquiz.com/ap
 const getMediaUrl = (key: string) => {
   try {
     const origin = new URL(API_URL).origin;
-    const cleanKey = key.startsWith('/') ? key.slice(1) : key;
+    let cleanKey = key.replace(/^\/+/, '');
+    if (cleanKey.startsWith('media/')) cleanKey = cleanKey.replace(/^media\//, '');
     return `${origin}/media/${cleanKey}`;
   } catch (e) {
-    const cleanKey = key.startsWith('/') ? key.slice(1) : key;
+    let cleanKey = key.replace(/^\/+/, '');
+    if (cleanKey.startsWith('media/')) cleanKey = cleanKey.replace(/^media\//, '');
     return `https://api.baravquiz.com/media/${cleanKey}`;
   }
 };

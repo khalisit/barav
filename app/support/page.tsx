@@ -34,13 +34,14 @@ export default function SupportPage() {
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.baravquiz.com';
+  const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || (process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL).origin : 'https://api.baravquiz.com');
 
   const resolveAvatarUrl = (key?: string | null) => {
     if (!key) return undefined;
     if (key.startsWith('http')) return key;
-    if (key.startsWith('/media/')) return `${BASE_URL}${key}`;
-    return `${BASE_URL}/media/${key.replace(/^\/+/, '')}`;
+    let cleanKey = key.replace(/^\/+/, '');
+    if (cleanKey.startsWith('media/')) cleanKey = cleanKey.replace(/^media\//, '');
+    return `${BASE_URL}/media/${cleanKey}`;
   };
 
   const { data: usersData, isLoading } = useQuery({

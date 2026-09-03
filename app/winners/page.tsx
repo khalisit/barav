@@ -26,17 +26,11 @@ import { cn } from '@/lib/utils';
 
 function resolveAvatarUrl(avatarVal?: string | null): string | undefined {
   if (!avatarVal) return undefined;
-  if (avatarVal.startsWith('http://') || avatarVal.startsWith('https://') || avatarVal.startsWith('data:')) {
-    return avatarVal;
-  }
-  let cleanKey = avatarVal;
-  if (cleanKey.startsWith('/')) cleanKey = cleanKey.slice(1);
-  if (!cleanKey.startsWith('users/') && !cleanKey.startsWith('admin/')) {
-    if (cleanKey.startsWith('avatars/')) cleanKey = `users/${cleanKey}`;
-    else cleanKey = `users/avatars/${cleanKey}`;
-  }
-  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') ?? 'https://api.baravquiz.com';
-  return `${apiBase}/api/media/${cleanKey}`;
+  if (avatarVal.startsWith('http')) return avatarVal;
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || (process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL).origin : 'https://api.baravquiz.com');
+  let cleanKey = avatarVal.replace(/^\/+/, '');
+  if (cleanKey.startsWith('media/')) cleanKey = cleanKey.replace(/^media\//, '');
+  return `${baseUrl}/media/${cleanKey}`;
 }
 
 function getPrizeText(obj: any, language: string): string {
