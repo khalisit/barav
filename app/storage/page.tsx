@@ -56,7 +56,7 @@ interface UploadedFile {
   isUsed?: boolean;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.baravquiz.com/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://barav-backend.arkanstudiokrd.workers.dev/api';
 
 const getMediaUrl = (key: string) => {
   try {
