@@ -64,7 +64,7 @@ export default function SupportPage() {
     },
   });
 
-  const users = usersData?.data || [];
+  const users = (usersData as any)?.data || [];
 
   const filteredUsers = users.filter((u: any) =>
     u.fullName.toLowerCase().includes(search.toLowerCase()) ||
