@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils';
 function resolveAvatarUrl(avatarVal?: string | null): string | undefined {
   if (!avatarVal) return undefined;
   if (avatarVal.startsWith('http')) return avatarVal;
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || (process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL).origin : 'https://api.baravquiz.com');
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || (process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL).origin : 'https://barav-backend.arkanstudiokrd.workers.dev');
   let cleanKey = avatarVal.replace(/^\/+/, '');
   if (cleanKey.startsWith('media/')) cleanKey = cleanKey.replace(/^media\//, '');
   return `${baseUrl}/media/${cleanKey}`;

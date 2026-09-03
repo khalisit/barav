@@ -67,7 +67,7 @@ const getMediaUrl = (key: string) => {
   } catch (e) {
     let cleanKey = key.replace(/^\/+/, '');
     if (cleanKey.startsWith('media/')) cleanKey = cleanKey.replace(/^media\//, '');
-    return `https://api.baravquiz.com/media/${cleanKey}`;
+    return `https://barav-backend.arkanstudiokrd.workers.dev/media/${cleanKey}`;
   }
 };
 

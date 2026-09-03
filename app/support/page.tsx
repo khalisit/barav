@@ -34,7 +34,7 @@ export default function SupportPage() {
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || (process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL).origin : 'https://api.baravquiz.com');
+  const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || (process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL).origin : 'https://barav-backend.arkanstudiokrd.workers.dev');
 
   const resolveAvatarUrl = (key?: string | null) => {
     if (!key) return undefined;
