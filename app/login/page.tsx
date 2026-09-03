@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
-import { User, Lock, ArrowRight } from 'lucide-react';
+import { User, Key, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -150,7 +150,7 @@ export default function LoginPage() {
                 <div className="space-y-2">
                   <Label htmlFor="password">{language === 'ku' ? 'وشەی نهێنی' : 'Password'}</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
+                    <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
                     <PasswordInput
                       id="password"
                       placeholder="••••••••"
