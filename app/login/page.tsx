@@ -132,7 +132,7 @@ export default function LoginPage() {
                 <div className="space-y-2">
                   <Label htmlFor="username">{language === 'ku' ? 'ناوی بەکارهێنەر' : 'Username'}</Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <User className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
                     <Input
                       id="username"
                       type="text"
@@ -150,7 +150,7 @@ export default function LoginPage() {
                 <div className="space-y-2">
                   <Label htmlFor="password">{language === 'ku' ? 'وشەی نهێنی' : 'Password'}</Label>
                   <div className="relative">
-                    <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
+                    <Key className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
                     <PasswordInput
                       id="password"
                       placeholder="••••••••"
