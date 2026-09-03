@@ -101,6 +101,12 @@
   button, a, [role="button"], select, input[type="submit"] {
     font-weight: 500 !important;
   }
+  
+  /* Hide native browser password reveal icon (Edge/IE) */
+  input[type="password"]::-ms-reveal,
+  input[type="password"]::-ms-clear {
+    display: none;
+  }
 }
 
 @layer utilities {
