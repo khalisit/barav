@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Search, MessageCircle, Trash2 } from 'lucide-react';
+import { Search, MessageCircle, Trash2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { useLanguage } from '@/hooks/use-language';
 import { formatDateTime } from '@/lib/format';
@@ -82,7 +82,7 @@ export default function SupportPage() {
 
       <div className="mt-6 flex h-[calc(100vh-200px)] gap-6" dir={language === 'ku' ? 'rtl' : 'ltr'}>
         {/* Sidebar / User List */}
-        <Card className="w-full md:w-1/3 flex flex-col h-full shadow-sm overflow-hidden bg-card">
+        <Card className={`w-full md:w-1/3 flex-col h-full shadow-sm overflow-hidden bg-card ${activeUserId ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-4 border-b">
             <div className="relative">
               <Search className={`absolute ${language === 'ku' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground`} />
@@ -153,7 +153,7 @@ export default function SupportPage() {
         </Card>
 
         {/* Chat Area */}
-        <Card className="hidden md:flex flex-1 h-full shadow-sm overflow-hidden flex-col bg-card">
+        <Card className={`flex-1 h-full shadow-sm overflow-hidden flex-col bg-card ${!activeUserId ? 'hidden md:flex' : 'flex'}`}>
           <AnimatePresence mode="wait">
             {activeUserId && activeUser ? (
               <motion.div
@@ -167,6 +167,14 @@ export default function SupportPage() {
                 {/* Chat Header */}
                 <div className="p-4 border-b flex items-center justify-between bg-muted/20">
                   <div className="flex items-center gap-3">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="md:hidden shrink-0"
+                      onClick={() => setActiveUserId(null)}
+                    >
+                      {language === 'ku' ? <ArrowRight size={20} /> : <ArrowLeft size={20} />}
+                    </Button>
                     <Avatar className="h-10 w-10">
                       {activeUser.avatarKey && (
                         <AvatarImage src={resolveAvatarUrl(activeUser.avatarKey)} alt={activeUser.fullName} />
