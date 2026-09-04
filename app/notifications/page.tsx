@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Bell, Check, CheckCheck, Trash2, Plus, Send } from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2, Plus, Send, ChevronsUpDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { PageHeader } from '@/components/shared/page-header';
@@ -18,13 +18,25 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import {
   Dialog,
   DialogContent,
@@ -339,21 +351,66 @@ export default function NotificationsPage() {
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 flex flex-col">
               <Label>{language === 'ku' ? 'بۆ یوزەری (تایبەت)' : 'Target User (Specific)'}</Label>
-              <Select onValueChange={(v) => setValue('userId', v === 'none' ? null : v)} value={watch('userId') || 'none'}>
-                <SelectTrigger>
-                  <SelectValue placeholder={language === 'ku' ? 'بۆ هەمووان (گشتی)' : 'For everyone (Global)'} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{language === 'ku' ? 'بۆ هەمووان (Global)' : 'For everyone (Global)'}</SelectItem>
-                  {usersList.map((u: any) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.username} ({u.fullName})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className={cn(
+                      "justify-between w-full font-normal",
+                      !watch('userId') && "text-muted-foreground"
+                    )}
+                  >
+                    {watch('userId')
+                      ? usersList.find((u: any) => u.id === watch('userId'))?.username || 'User selected'
+                      : language === 'ku' ? 'بۆ هەمووان (گشتی)' : 'For everyone (Global)'}
+                    <ChevronsUpDown className="ms-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder={language === 'ku' ? 'گەڕان بۆ یوزەر...' : 'Search user...'} />
+                    <CommandList>
+                      <CommandEmpty>{language === 'ku' ? 'هیچ یوزەرێک نەدۆزرایەوە.' : 'No user found.'}</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="none"
+                          onSelect={() => {
+                            setValue('userId', null);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "me-2 h-4 w-4",
+                              !watch('userId') ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {language === 'ku' ? 'بۆ هەمووان (Global)' : 'For everyone (Global)'}
+                        </CommandItem>
+                        {usersList.map((u: any) => (
+                          <CommandItem
+                            key={u.id}
+                            value={u.username || u.fullName || u.id}
+                            onSelect={() => {
+                              setValue('userId', u.id);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "me-2 h-4 w-4",
+                                watch('userId') === u.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {u.username} ({u.fullName})
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <DialogFooter className="pt-4">
