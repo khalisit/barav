@@ -542,7 +542,7 @@ export default function RevenueExpensesPage() {
                 placeholder={language === 'ku' ? 'ناونیشانی سەودا (بۆ نموونە: داهاتی بەشداریکردنی مانگانە)' : 'e.g. Monthly subscription revenue'}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="tx-category">{language === 'ku' ? 'جۆری بابەت' : 'Category'}</Label>
                 <Input

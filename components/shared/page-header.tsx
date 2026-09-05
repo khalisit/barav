@@ -85,9 +85,9 @@ export function PageHeader({
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
-      className="flex flex-col gap-4 pb-6 md:flex-row md:items-center md:justify-between"
+      className="flex flex-col gap-3 pb-4 sm:gap-4 sm:pb-6 md:flex-row md:items-center md:justify-between"
     >
-      <div className="space-y-2">
+      <div className="min-w-0 space-y-1.5">
         {breadcrumbs && breadcrumbs.length > 0 && (
           <Breadcrumb>
             <BreadcrumbList>
@@ -106,14 +106,18 @@ export function PageHeader({
             </BreadcrumbList>
           </Breadcrumb>
         )}
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+        <h1 className="truncate text-xl font-bold tracking-tight text-foreground sm:text-2xl">
           {translateText(title, language)}
         </h1>
         {description && (
           <p className="text-sm text-muted-foreground">{translateText(description, language)}</p>
         )}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {actions}
+        </div>
+      )}
     </motion.div>
   );
 }

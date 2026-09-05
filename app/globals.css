@@ -89,6 +89,10 @@
   * {
     @apply border-border;
   }
+  html {
+    /* Fluid base font: 14px on 320px screens → 16px on 1280px+ screens */
+    font-size: clamp(0.875rem, 0.795rem + 0.4vw, 1rem);
+  }
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;

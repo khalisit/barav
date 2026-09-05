@@ -35,7 +35,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
 
   return (
     <div className="flex h-full flex-col border-e border-sidebar-border bg-sidebar" dir={language === 'ku' ? 'rtl' : 'ltr'}>
-      <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-6">
+      <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4 xl:gap-2.5 xl:px-6">
         <Image
           src="/logo.png"
           alt="Barav Quiz"
@@ -43,24 +43,24 @@ export function Sidebar({ onNavigate }: SidebarProps) {
           height={36}
           className="rounded-md object-cover"
         />
-        <div className="flex flex-col">
-          <span className="text-sm font-bold tracking-tight text-sidebar-foreground">
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate text-sm font-bold tracking-tight text-sidebar-foreground">
             Barav Quiz
           </span>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="truncate text-[11px] text-muted-foreground">
             {language === 'ku' ? 'پەنێڵی بەڕێوەبەر' : 'Admin Panel'}
           </span>
         </div>
       </div>
 
-      <ScrollArea className="flex-1 px-3 py-4" dir={language === 'ku' ? 'rtl' : 'ltr'}>
+      <ScrollArea className="flex-1 px-2 py-3 xl:px-3 xl:py-4" dir={language === 'ku' ? 'rtl' : 'ltr'}>
         <nav className="space-y-6">
           {navSections.map((section) => {
             const visibleItems = section.items;
             if (visibleItems.length === 0) return null;
             return (
               <div key={section.label}>
-                <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground xl:px-3 xl:text-[11px]">
                   {t('nav.' + section.label.toLowerCase())}
                 </p>
                 <div className="space-y-0.5">
@@ -76,7 +76,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                         ref={isActive ? activeRef : null}
                         onClick={onNavigate}
                         className={cn(
-                          'group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150 ease-out active:scale-[0.96]',
+                          'group relative flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium transition-all duration-150 ease-out active:scale-[0.96] xl:gap-3 xl:px-3 xl:py-2',
                           isActive
                             ? 'text-primary'
                             : 'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -113,8 +113,8 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         </nav>
       </ScrollArea>
 
-      <div className="border-t border-sidebar-border p-4">
-        <div className="rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 p-3">
+      <div className="border-t border-sidebar-border p-3 xl:p-4">
+        <div className="rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 p-2.5 xl:p-3">
           <p className="text-xs font-semibold text-foreground">Barav Quiz</p>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
             {language === 'ku' ? 'دڵخۆش بە لەگەڵمان' : 'Be Happy With Us'}

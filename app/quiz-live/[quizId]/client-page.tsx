@@ -396,7 +396,7 @@ export default function QuizLivePage() {
                 {language === 'ku' ? 'بەژداربووان' : 'Participants'}
               </span>
             </div>
-            <div className="text-2xl font-bold mt-1">
+            <div className="text-xl font-bold mt-1 sm:text-2xl">
               {activeStatus?.participants.active ?? activeStatus?.participants.waiting ?? 0}
             </div>
           </CardContent>
@@ -409,7 +409,7 @@ export default function QuizLivePage() {
                 {language === 'ku' ? 'تەماشاچیان' : 'Spectators'}
               </span>
             </div>
-            <div className="text-2xl font-bold mt-1">{totalSpectators}</div>
+            <div className="text-xl font-bold mt-1 sm:text-2xl">{totalSpectators}</div>
           </CardContent>
         </Card>
         <Card className="bg-orange-500/5 border-orange-500/20">
@@ -420,7 +420,7 @@ export default function QuizLivePage() {
                 {language === 'ku' ? 'پرسیار' : 'Question'}
               </span>
             </div>
-            <div className="text-2xl font-bold mt-1">
+            <div className="text-xl font-bold mt-1 sm:text-2xl">
               {currentQuestion
                 ? `${currentQuestion.questionIndex}/${currentQuestion.totalQuestions}`
                 : '—'}
@@ -435,7 +435,7 @@ export default function QuizLivePage() {
                 {language === 'ku' ? 'براوەکان' : 'Survivors'}
               </span>
             </div>
-            <div className="text-2xl font-bold mt-1">{revealData?.survivors ?? '—'}</div>
+            <div className="text-xl font-bold mt-1 sm:text-2xl">{revealData?.survivors ?? '—'}</div>
           </CardContent>
         </Card>
       </div>

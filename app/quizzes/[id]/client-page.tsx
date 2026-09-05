@@ -100,7 +100,7 @@ export default function QuizDetailsPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 mb-8">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         <StatCard title={language === 'ku' ? 'پرسیارەکان' : 'Questions'} value={questions.length} icon={HelpCircle} />
         <StatCard title={language === 'ku' ? 'بەشداربووان' : 'Participants'} value={quiz.participantCount || 0} icon={Users} accent="info" />
         <StatCard title={language === 'ku' ? 'کاتی گشتی' : 'Duration'} value={formattedDuration} icon={Clock} accent="warning" />

@@ -65,7 +65,7 @@ export function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md md:px-6">
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border bg-background/80 px-3 backdrop-blur-md sm:gap-3 sm:px-4 md:px-6">
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu">
@@ -79,16 +79,16 @@ export function Navbar() {
 
         <button
           onClick={() => setCommandOpen(true)}
-          className="group flex w-full max-w-md items-center gap-2 rounded-md border border-input bg-muted/40 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted md:max-w-sm"
+          className="group flex min-w-0 flex-1 items-center gap-2 rounded-md border border-input bg-muted/40 px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted sm:max-w-sm sm:px-3 sm:py-2 md:max-w-md"
         >
-          <Search className="h-4 w-4" />
-          <span className="flex-1 text-start">{language === 'ku' ? 'گەڕان...' : 'Search...'}</span>
-          <kbd className="hidden rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium sm:inline-block">
+          <Search className="h-4 w-4 shrink-0" />
+          <span className="flex-1 truncate text-start">{language === 'ku' ? 'گەڕان...' : 'Search...'}</span>
+          <kbd className="hidden shrink-0 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium sm:inline-block">
             ⌘K
           </kbd>
         </button>
 
-        <div className="ms-auto flex items-center gap-1">
+        <div className="ms-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
           <Button variant="ghost" size="icon" aria-label="Notifications">
             <Link href="/notifications">
               <Bell className="h-5 w-5" />
@@ -96,13 +96,13 @@ export function Navbar() {
           </Button>
           <ThemeSwitcher />
           <LanguageSwitcher />
-          <div className="flex h-8 items-center gap-2 rounded-full bg-success/10 px-3 text-success">
-            <div className="relative flex h-2 w-2">
+          <div className="hidden h-8 items-center gap-1.5 rounded-full bg-success/10 px-2.5 text-success sm:flex sm:px-3">
+            <div className="relative flex h-2 w-2 shrink-0">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75"></span>
               <span className="relative inline-flex h-2 w-2 rounded-full bg-success"></span>
             </div>
             <span className="text-sm font-semibold">{onlineCount}</span>
-            <span className="text-xs font-medium">
+            <span className="hidden text-xs font-medium md:inline">
               {language === 'ku' ? 'ئۆنلاین' : 'Online'}
             </span>
           </div>

@@ -54,13 +54,13 @@ export function StatCard({
       transition={{ duration: 0.3, delay }}
     >
       <Card className="relative overflow-hidden">
-        <CardContent className="p-5">
+        <CardContent className="p-4 sm:p-5">
           <div className="flex items-start justify-between">
-            <div className="space-y-1">
+            <div className="min-w-0 space-y-1">
               <p className="text-sm font-medium text-muted-foreground">
                 {title}
               </p>
-              <p className="text-2xl font-bold tracking-tight text-foreground">
+              <p className="truncate text-xl font-bold tracking-tight text-foreground sm:text-2xl">
                 {formattedValue}
               </p>
               {change !== undefined && (
@@ -79,7 +79,7 @@ export function StatCard({
                     {change >= 0 ? '+' : ''}
                     {change.toFixed(1)}%
                   </span>
-                  <span className="text-muted-foreground">
+                  <span className="hidden text-muted-foreground sm:inline">
                     {language === 'ku' ? 'بەراورد بە ماوەی پێشوو' : 'vs last period'}
                   </span>
                 </div>
@@ -87,7 +87,7 @@ export function StatCard({
             </div>
             <div
               className={cn(
-                'flex h-11 w-11 items-center justify-center rounded-lg',
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:h-11 sm:w-11',
                 accentMap[accent]
               )}
             >

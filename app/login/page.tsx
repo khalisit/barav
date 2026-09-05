@@ -50,7 +50,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="relative hidden flex-1 flex-col justify-between overflow-hidden p-12 text-white lg:flex">
+      <div className="relative hidden flex-1 flex-col justify-between overflow-hidden p-8 text-white lg:flex lg:p-12">
         <div
           className="absolute inset-0"
           style={{
@@ -82,7 +82,7 @@ export default function LoginPage() {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="relative space-y-4"
         >
-          <h1 className="text-4xl font-bold leading-tight">
+          <h1 className="text-2xl font-bold leading-tight md:text-3xl lg:text-4xl">
             {language === 'ku' ? 'پلاتفۆرمی کویزەکانت بە متمانەوە بەڕێوەبەرە.' : 'Manage your quiz platform with confidence.'}
           </h1>
           <p className="max-w-md text-lg text-primary-foreground/80">
@@ -103,7 +103,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div className="flex flex-1 items-center justify-center bg-background p-6">
+      <div className="flex flex-1 items-center justify-center bg-background px-4 py-8 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
