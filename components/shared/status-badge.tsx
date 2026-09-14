@@ -31,7 +31,7 @@ export function StatusBadge({ status, variant, className }: StatusBadgeProps) {
     if (s === 'running') displayText = 'دەکرێت بەشداربیت';
     else if (s === 'ready') displayText = 'ئامادەیە و داخراوە';
     else if (s === 'live') displayText = 'ڕاستەوخۆ (یاریەکە)';
-    else if (s === 'draft') displayText = 'ڕەشنووس';
+    else if (s === 'draft') displayText = 'بڵاو نەکراوە';
     else if (s === 'published') displayText = 'بڵاوکراوەتەوە';
     else if (s === 'archived') displayText = 'ئەرشیڤ کراوە';
     else if (s === 'waiting') displayText = 'لە چاوەڕوانیدایە';
