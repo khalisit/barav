@@ -8,6 +8,8 @@
   }
 
   :root {
+    --font-poppins: 'Poppins', sans-serif;
+    --font-noto-sans-arabic: 'Noto Sans Arabic', sans-serif;
     /* ── Light mode (matching Flutter Light palette) ─────── */
     --background: 252 38% 96%;            /* #F3F1FA */
     --foreground: 223 39% 13%;            /* #141B2D */
