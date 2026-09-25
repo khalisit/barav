@@ -498,7 +498,7 @@ export default function WinnersPage() {
                     </thead>
                     <tbody className="divide-y divide-border/50">
                       {filteredReceipts.map((r: any) => {
-                        const userMatch = Array.isArray(usersResult?.data) ? usersResult.data.find(u => u.id === r.userId) : null;
+                        const userMatch = Array.isArray(usersResult?.data) ? usersResult.data.find((u: any) => u.id === r.userId) : null;
                         const avatarVal = userMatch?.avatarUrl || userMatch?.avatarKey || r.avatarUrl || r.avatarKey || r.user?.avatarUrl || r.user?.avatarKey;
                         const finalName = userMatch?.fullName || userMatch?.username || r.userName || r.user?.fullName || r.username || r.user?.username || 'Unknown';
                         const finalUsername = userMatch?.username || r.username || r.user?.username;
