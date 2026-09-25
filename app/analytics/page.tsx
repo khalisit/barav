@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Users, HelpCircle, DollarSign, TrendingUp, TrendingDown, Trophy, Gift } from 'lucide-react';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { PageHeader } from '@/components/shared/page-header';
@@ -14,6 +14,7 @@ import { useLanguage } from '@/hooks/use-language';
 
 export default function AnalyticsPage() {
   const { language } = useLanguage();
+  const [revenueCurrency, setRevenueCurrency] = useState<'USD' | 'IQD'>('USD');
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => getDashboardData(),
@@ -40,7 +41,7 @@ export default function AnalyticsPage() {
       />
 
       {/* Stats Cards Grid - 3 Columns for perfect width, consistency, and identical heights */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title={language === 'ku' ? 'کۆی بەکارهێنەران' : 'Total Users'}
           value={data.stats.totalUsers}
@@ -54,14 +55,6 @@ export default function AnalyticsPage() {
           icon={HelpCircle}
           change={data.stats.runningQuizzesTrend}
           accent="info"
-          delay={0.05}
-        />
-        <StatCard
-          title={language === 'ku' ? 'کۆی پرسیارەکان' : 'Total Questions'}
-          value={data.stats.totalQuestions}
-          icon={HelpCircle}
-          change={data.stats.totalQuestionsTrend}
-          accent="warning"
           delay={0.1}
         />
         <StatCard
@@ -71,7 +64,7 @@ export default function AnalyticsPage() {
           format="raw"
           change={data.stats.monthlyRevenueTrend}
           accent="success"
-          delay={0.15}
+          delay={0.2}
         />
         <StatCard
           title={language === 'ku' ? 'خەرجییەکان' : 'Expenses'}
@@ -80,33 +73,11 @@ export default function AnalyticsPage() {
           format="raw"
           change={data.stats.monthlyExpenseTrend}
           accent="destructive"
-          delay={0.2}
-        />
-        <StatCard
-          title={language === 'ku' ? 'کۆی براوەکان' : 'Total Winners'}
-          value={data.stats.totalWinners}
-          icon={Trophy}
-          change={data.stats.totalWinnersTrend}
-          accent="warning"
-          delay={0.25}
-        />
-        <StatCard
-          title={language === 'ku' ? 'خەڵاتی دراو' : 'Paid Rewards'}
-          value={`${Math.round(data.stats.paidRewards).toLocaleString('en-US')} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
-          icon={Gift}
-          accent="success"
           delay={0.3}
-        />
-        <StatCard
-          title={language === 'ku' ? 'خەڵاتی نەدراو' : 'Unclaimed Rewards'}
-          value={`${Math.round(data.stats.unclaimedRewards).toLocaleString('en-US')} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
-          icon={Gift}
-          accent="warning"
-          delay={0.32}
         />
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <ChartCard
           title={language === 'ku' ? 'گەشەی بەکارهێنەر' : 'User Growth'}
           description={language === 'ku' ? 'کۆی گشتی تۆماربوونی بەکارهێنەران' : 'Cumulative user registrations'}
@@ -116,12 +87,28 @@ export default function AnalyticsPage() {
           height={280}
         />
         <ChartCard
-          title={language === 'ku' ? 'ڕەوتی داهات' : 'Revenue Trend'}
-          description={language === 'ku' ? 'داڕشتەی داهاتی مانگانە' : 'Monthly revenue breakdown'}
-          data={data.revenue}
+          title={language === 'ku' ? 'داهاتی ڕۆژانە' : 'Daily Revenue'}
+          description={language === 'ku' ? 'داڕشتەی داهاتی ڕۆژانە' : 'Daily revenue breakdown'}
+          data={revenueCurrency === 'USD' ? data.revenueUsd : data.revenueIqd}
           type="area"
           color={chartColors.success}
           height={280}
+          action={
+            <div className="flex bg-muted p-1 rounded-md">
+              <button
+                className={`px-3 py-1 text-xs font-medium rounded-sm ${revenueCurrency === 'USD' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                onClick={() => setRevenueCurrency('USD')}
+              >
+                {language === 'ku' ? 'دۆلار' : 'USD'}
+              </button>
+              <button
+                className={`px-3 py-1 text-xs font-medium rounded-sm ${revenueCurrency === 'IQD' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                onClick={() => setRevenueCurrency('IQD')}
+              >
+                {language === 'ku' ? 'دینار' : 'IQD'}
+              </button>
+            </div>
+          }
         />
         <ChartCard
           title={language === 'ku' ? 'چالاکی کویز' : 'Quiz Activity'}
@@ -129,30 +116,6 @@ export default function AnalyticsPage() {
           data={data.quizActivity}
           type="bar"
           color={chartColors.warning}
-          height={280}
-        />
-        <ChartCard
-          title={language === 'ku' ? 'چالاکی وەڵامدانەوە' : 'Answer Activity'}
-          description={language === 'ku' ? 'وەڵامە نێردراوەکان لە ڕۆژێکدا' : 'Answers submitted per day'}
-          data={data.answerActivity}
-          type="line"
-          color={chartColors.info}
-          height={280}
-        />
-        <ChartCard
-          title={language === 'ku' ? 'بەشداری بەکارهێنەر' : 'User Engagement'}
-          description={language === 'ku' ? 'نمرەی بەشداری ڕۆژانە' : 'Daily engagement score'}
-          data={engagement}
-          type="area"
-          color={chartColors.purple}
-          height={280}
-        />
-        <ChartCard
-          title={language === 'ku' ? 'ڕێژەی مانەوە' : 'Retention Rate'}
-          description={language === 'ku' ? 'ڕێژەی مانەوەی بەکارهێنەر لە ٣٠ ڕۆژدا' : '30-day user retention'}
-          data={retention}
-          type="line"
-          color={chartColors.destructive}
           height={280}
         />
       </div>

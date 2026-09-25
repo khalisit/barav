@@ -219,7 +219,7 @@ export default function RevenueExpensesPage() {
     setFormType(tx.type);
     setFormTitle(tx.title);
     setFormCategory(tx.category);
-    setFormAmount(String(tx.amount));
+    setFormAmount(Number(tx.amount || 0).toLocaleString('en-US'));
     setFormCurrency(tx.currency || 'USD');
     setFormDate(tx.date);
     setFormNote(tx.note ?? '');
@@ -277,7 +277,7 @@ export default function RevenueExpensesPage() {
       toast.error(language === 'ku' ? 'تکایە هەموو خانە پێویستەکان پڕبکەرەوە' : 'Please fill in all required fields');
       return;
     }
-    const amount = parseFloat(formAmount);
+    const amount = Number(formAmount.replace(/\D/g, ''));
     if (isNaN(amount) || amount < 0) {
       toast.error(language === 'ku' ? 'پێویستە بڕەکە ژمارەیەکی دروست و ئەرێنی بێت' : 'Amount must be a valid positive number');
       return;
@@ -557,12 +557,18 @@ export default function RevenueExpensesPage() {
                 <div className="flex gap-2">
                   <Input
                     id="tx-amount"
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="text"
+                    inputMode="numeric"
                     value={formAmount}
-                    onChange={(e) => setFormAmount(e.target.value)}
-                    placeholder="0.00"
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '');
+                      if (!raw) {
+                        setFormAmount('');
+                        return;
+                      }
+                      setFormAmount(Number(raw).toLocaleString('en-US'));
+                    }}
+                    placeholder="0"
                     className="flex-1"
                   />
                   <Select value={formCurrency} onValueChange={(v) => setFormCurrency(v as 'USD' | 'IQD')}>

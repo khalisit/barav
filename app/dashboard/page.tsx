@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Users,
   Wifi,
@@ -71,6 +71,7 @@ const translateResource = (resource: string, language: string) => {
 export default function DashboardPage() {
   const { user } = useAuth();
   const { t, language } = useLanguage();
+  const [revenueCurrency, setRevenueCurrency] = useState<'USD' | 'IQD'>('USD');
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => getDashboardData(),
@@ -121,21 +122,8 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <StatCard title={t('stat.totalUsers')} value={data.stats.totalUsers} icon={Users} change={data.stats.totalUsersTrend} delay={0} />
-        <StatCard title={t('stat.onlineNow')} value={data.stats.onlineUsers} icon={Wifi} change={data.stats.onlineUsersTrend} accent="success" delay={0.05} />
-        <StatCard title={language === 'ku' ? 'دەستپێکردن' : 'Running'} value={data.stats.runningQuizzes} icon={PlayCircle} change={data.stats.runningQuizzesTrend} accent="warning" delay={0.1} />
-        <StatCard title={language === 'ku' ? 'ئامادەیە' : 'Ready'} value={data.stats.scheduledQuizzes} icon={CalendarClock} change={data.stats.scheduledQuizzesTrend} delay={0.15} />
-        <StatCard title={language === 'ku' ? 'کویزی ڕاستەوخۆ' : 'Live'} value={data.stats.liveQuizzes} icon={CheckCircle2} change={data.stats.liveQuizzesTrend} accent="success" delay={0.2} />
-        <StatCard title={t('stat.totalQuestions')} value={data.stats.totalQuestions} icon={HelpCircle} change={data.stats.totalQuestionsTrend} delay={0.25} />
-        <StatCard title={t('stat.totalAnswers')} value={data.stats.totalAnswers} icon={MessageSquare} change={data.stats.totalAnswersTrend} accent="info" delay={0.3} />
-        <StatCard
-          title={t('stat.dailyRevenue')}
-          value={`$${Math.round(data.stats.dailyRevenueUsd).toLocaleString()} / ${Math.round(data.stats.dailyRevenueIqd).toLocaleString()} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
-          icon={DollarSign}
-          format="raw"
-          change={data.stats.dailyRevenueTrend}
-          accent="success"
-          delay={0.35}
-        />
+        <StatCard title={language === 'ku' ? 'کویزی ڕاستەوخۆ' : 'Live Quizzes'} value={data.stats.liveQuizzes} icon={CheckCircle2} change={data.stats.liveQuizzesTrend} accent="success" delay={0.1} />
+        <StatCard title={t('stat.totalQuestions')} value={data.stats.totalQuestions} icon={HelpCircle} change={data.stats.totalQuestionsTrend} delay={0.2} />
         <StatCard
           title={t('stat.monthlyRevenue')}
           value={`$${Math.round(data.stats.monthlyRevenueUsd).toLocaleString()} / ${Math.round(data.stats.monthlyRevenueIqd).toLocaleString()} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
@@ -143,16 +131,7 @@ export default function DashboardPage() {
           format="raw"
           change={data.stats.monthlyRevenueTrend}
           accent="success"
-          delay={0.4}
-        />
-        <StatCard
-          title={language === 'ku' ? 'خەرجی ڕۆژانە' : 'Daily Expenses'}
-          value={`$${Math.round(data.stats.dailyExpenseUsd).toLocaleString()} / ${Math.round(data.stats.dailyExpenseIqd).toLocaleString()} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
-          icon={DollarSign}
-          format="raw"
-          change={data.stats.dailyExpenseTrend}
-          accent="destructive"
-          delay={0.42}
+          delay={0.3}
         />
         <StatCard
           title={language === 'ku' ? 'خەرجی مانگانە' : 'Monthly Expenses'}
@@ -161,36 +140,15 @@ export default function DashboardPage() {
           format="raw"
           change={data.stats.monthlyExpenseTrend}
           accent="destructive"
-          delay={0.45}
+          delay={0.4}
         />
-        <StatCard title={t('stat.totalWinners')} value={data.stats.totalWinners} icon={Trophy} change={data.stats.totalWinnersTrend} accent="warning" delay={0.48} />
-        <StatCard
-          title={language === 'ku' ? 'خەڵاتی دراو' : 'Paid Rewards'}
-          value={`${Math.round(data.stats.paidRewards).toLocaleString('en-US')} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
-          icon={Gift}
-          accent="success"
-          delay={0.5}
-        />
-        <StatCard
-          title={language === 'ku' ? 'خەڵاتی نەدراو' : 'Unclaimed Rewards'}
-          value={`${Math.round(data.stats.unclaimedRewards).toLocaleString('en-US')} ${language === 'ku' ? 'د.ع' : 'IQD'}`}
-          icon={Gift}
-          accent="warning"
-          delay={0.52}
-        />
+        <StatCard title={t('stat.totalWinners')} value={data.stats.totalWinners} icon={Trophy} change={data.stats.totalWinnersTrend} accent="warning" delay={0.5} />
         <StatCard
           title={language === 'ku' ? 'پشتیوانی نوێ' : 'Unread Support'}
           value={data.stats.unreadSupportMessages}
           icon={MessageSquare}
           accent="destructive"
-          delay={0.54}
-        />
-        <StatCard
-          title={language === 'ku' ? 'گشت پشتیوانیەکان' : 'Total Support'}
-          value={data.stats.totalSupportMessages}
-          icon={HelpCircle}
-          accent="info"
-          delay={0.56}
+          delay={0.6}
         />
       </div>
 
@@ -204,36 +162,28 @@ export default function DashboardPage() {
           height={260}
         />
         <ChartCard
-          title={t('chart.revenue')}
-          description={t('chart.revenueDesc')}
-          data={data.revenue}
+          title={language === 'ku' ? 'داهاتی ڕۆژانە' : 'Daily Revenue'}
+          description={language === 'ku' ? 'داڕشتەی داهاتی ڕۆژانە' : 'Daily revenue breakdown'}
+          data={revenueCurrency === 'USD' ? data.revenueUsd : data.revenueIqd}
           type="area"
           color={chartColors.success}
           height={260}
-        />
-        <ChartCard
-          title={t('chart.quizActivity')}
-          description={t('chart.quizActivityDesc')}
-          data={data.quizActivity}
-          type="bar"
-          color={chartColors.warning}
-          height={260}
-        />
-        <ChartCard
-          title={t('chart.answerActivity')}
-          description={t('chart.answerActivityDesc')}
-          data={data.answerActivity}
-          type="line"
-          color={chartColors.info}
-          height={260}
-        />
-        <ChartCard
-          title={t('chart.activeUsers')}
-          description={t('chart.activeUsersDesc')}
-          data={data.activeUsers}
-          type="area"
-          color={chartColors.purple}
-          height={260}
+          action={
+            <div className="flex bg-muted p-1 rounded-md">
+              <button
+                className={`px-3 py-1 text-xs font-medium rounded-sm ${revenueCurrency === 'USD' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                onClick={() => setRevenueCurrency('USD')}
+              >
+                {language === 'ku' ? 'دۆلار' : 'USD'}
+              </button>
+              <button
+                className={`px-3 py-1 text-xs font-medium rounded-sm ${revenueCurrency === 'IQD' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                onClick={() => setRevenueCurrency('IQD')}
+              >
+                {language === 'ku' ? 'دینار' : 'IQD'}
+              </button>
+            </div>
+          }
         />
       </div>
 

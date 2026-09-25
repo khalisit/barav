@@ -516,9 +516,15 @@ export default function CreateQuizPage() {
 
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label className="text-base font-semibold flex items-center gap-2"><Clock className="h-4 w-4 text-primary" />{language === 'ku' ? 'کاتی دەستپێکردن (ئارەزوومەندانە)' : 'Start Time (Optional)'}</Label>
-                    <Input type="datetime-local" className="h-12" {...register('scheduledAt')} />
-                    <p className="text-xs text-muted-foreground">{language === 'ku' ? 'ئەگەر کات دیاری بکرێت، کویزەکە دەبێتە scheduled' : 'If set, quiz becomes scheduled'}</p>
+                    <Label className="text-base font-semibold flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-primary" />
+                      {language === 'ku' ? 'کاتی دەستپێکردن' : 'Start Time'}
+                    </Label>
+                    <Input 
+                      type="datetime-local" 
+                      className="h-12 w-full font-medium shadow-sm transition-all focus:ring-2 focus:ring-primary/20" 
+                      {...register('scheduledAt')} 
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-base font-semibold flex items-center gap-2">{language === 'ku' ? 'ژمارەی براوەکان' : 'Number of Winners'}</Label>
@@ -658,16 +664,10 @@ export default function CreateQuizPage() {
                     transition={{ delay: index * 0.05 }}
                   >
                     <Card
-                      draggable
-                      onDragStart={() => handleDragStart(index)}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      className="group cursor-move border-s-4 border-s-primary shadow-sm hover:shadow-md transition-all overflow-hidden relative"
+                      className="group border-s-4 border-s-primary shadow-sm hover:shadow-md transition-all overflow-hidden relative"
                     >
                       <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       <CardHeader className="flex flex-row items-center gap-4 pb-4 bg-muted/20 border-b">
-                        <div className="p-2 bg-background rounded cursor-grab hover:bg-accent hover:text-accent-foreground transition-colors">
-                          <GripVertical className="h-5 w-5" />
-                        </div>
                         <div className="flex flex-1 items-center gap-3">
                           <CardTitle className="text-base font-bold">
                             {language === 'ku' ? `پرسیاری ${index + 1}` : `Question ${index + 1}`}
@@ -678,7 +678,7 @@ export default function CreateQuizPage() {
                           type="button"
                           variant="destructive"
                           size="sm"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="transition-opacity"
                           onClick={() => removeQuestion(q.id)}
                         >
                           <Trash2 className="me-2 h-4 w-4" /> {language === 'ku' ? 'سڕینەوە' : 'Delete'}

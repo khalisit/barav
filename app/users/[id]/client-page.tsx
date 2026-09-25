@@ -55,7 +55,7 @@ export default function UserDetailsPage() {
     enabled: !!params.id
   });
 
-  const activityData = activitiesResult?.data || [];
+  const activityData = (activitiesResult as any)?.data || [];
 
   // States for different confirmation dialogs
   const [statusTarget, setStatusTarget] = useState<'banned' | 'active' | 'inactive' | 'deleted' | null>(null);
@@ -172,39 +172,79 @@ export default function UserDetailsPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1 shadow-sm">
-          <CardContent className="flex flex-col items-center pt-6 text-center">
-            <Avatar className="h-24 w-24 shadow-sm">
-              {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.fullName} />}
-              <AvatarFallback className="bg-primary/10 text-2xl font-bold text-primary uppercase">
-                {user.fullName ? user.fullName.charAt(0) : 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <h2 className="mt-4 text-xl font-bold">{user.fullName}</h2>
-            <p className="text-sm text-muted-foreground" dir="ltr">@{user.username} &bull; {user.email}</p>
-            <div className="mt-3 flex gap-2">
-              <StatusBadge status={user.status} />
-              {user.provider && <Badge variant="outline" className="capitalize">{user.provider === 'local' ? 'email' : user.provider}</Badge>}
-            </div>
-            <Separator className="my-4" />
-            <div className="w-full space-y-3 text-start text-sm">
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Mail className="h-4 w-4 shrink-0 text-primary" />
-                <span className="truncate">{user.email}</span>
+        <Card className="lg:col-span-1 shadow-md border-border/50 bg-gradient-to-b from-background to-muted/20">
+          <CardContent className="flex flex-col items-center pt-8 text-center px-6">
+            <div className="relative">
+              <Avatar className="h-28 w-28 shadow-xl ring-4 ring-background border border-primary/10">
+                {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.fullName} className="object-cover" />}
+                <AvatarFallback className="bg-primary/10 text-3xl font-black text-primary uppercase">
+                  {user.fullName ? user.fullName.charAt(0) : 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2">
+                <StatusBadge status={user.status} />
               </div>
+            </div>
+            
+            <div className="mt-6 space-y-1">
+              <h2 className="text-2xl font-black text-foreground drop-shadow-sm">{user.fullName}</h2>
+              <div className="flex items-center justify-center gap-2 text-muted-foreground font-medium" dir="ltr">
+                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-md text-xs">@{user.username}</span>
+                {user.provider && (
+                  <Badge variant="outline" className="capitalize text-[10px] h-5 px-1.5 border-primary/20">
+                    {user.provider === 'local' ? 'email' : user.provider}
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            <Separator className="my-6 w-full" />
+            
+            <div className="w-full space-y-4 text-start">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 transition-colors hover:bg-muted/50">
+                <div className="bg-primary/10 p-2 rounded-lg">
+                  <Mail className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium mb-0.5">{language === 'ku' ? 'ئیمەیل' : 'Email'}</p>
+                  <p className="text-sm font-semibold truncate text-foreground">{user.email}</p>
+                </div>
+              </div>
+
               {user.phone && (
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <Phone className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="truncate">{user.phone}</span>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 transition-colors hover:bg-muted/50">
+                  <div className="bg-primary/10 p-2 rounded-lg">
+                    <Phone className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground font-medium mb-0.5">{language === 'ku' ? 'تەلەفۆن' : 'Phone'}</p>
+                      <p className="text-sm font-semibold truncate text-foreground" dir="ltr">{user.phone}</p>
+                    </div>
+                    <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-600 px-2 py-1 rounded-full border border-emerald-500/20">
+                      <CheckCircle className="h-3 w-3" />
+                      <span className="text-[10px] font-bold">{language === 'ku' ? 'سەلمێندراو' : 'Verified'}</span>
+                    </div>
+                  </div>
                 </div>
               )}
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Calendar className="h-4 w-4 shrink-0 text-primary" />
-                <span>{language === 'ku' ? 'بەرواری پەیوەندیکردن' : 'Joined'} {formatDate(user.joinedAt)}</span>
-              </div>
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Calendar className="h-4 w-4 shrink-0 text-primary" />
-                <span>{language === 'ku' ? 'دوایین چالاکی' : 'Last active'} {formatDateTime(user.lastActiveAt)}</span>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1 p-3 rounded-xl bg-muted/30 border border-border/40">
+                  <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span className="text-[10px] font-semibold uppercase">{language === 'ku' ? 'پەیوەندیکردن' : 'Joined'}</span>
+                  </div>
+                  <span className="text-xs font-bold text-foreground">{formatDate(user.joinedAt)}</span>
+                </div>
+                
+                <div className="flex flex-col gap-1 p-3 rounded-xl bg-muted/30 border border-border/40">
+                  <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span className="text-[10px] font-semibold uppercase">{language === 'ku' ? 'دوایین چالاکی' : 'Last Active'}</span>
+                  </div>
+                  <span className="text-xs font-bold text-foreground">{formatDate(user.lastActiveAt)}</span>
+                </div>
               </div>
             </div>
           </CardContent>

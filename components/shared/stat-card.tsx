@@ -19,11 +19,26 @@ interface StatCardProps {
 }
 
 const accentMap = {
-  primary: 'bg-primary/10 text-primary',
-  success: 'bg-success/10 text-success',
-  warning: 'bg-warning/10 text-warning',
-  info: 'bg-info/10 text-info',
-  destructive: 'bg-destructive/10 text-destructive',
+  primary: {
+    wrapper: 'bg-primary/10 border-primary/20 hover:border-primary/40 hover:bg-primary/15',
+    icon: 'text-primary bg-primary/20',
+  },
+  success: {
+    wrapper: 'bg-success/10 border-success/20 hover:border-success/40 hover:bg-success/15',
+    icon: 'text-success bg-success/20',
+  },
+  warning: {
+    wrapper: 'bg-warning/10 border-warning/20 hover:border-warning/40 hover:bg-warning/15',
+    icon: 'text-warning bg-warning/20',
+  },
+  info: {
+    wrapper: 'bg-info/10 border-info/20 hover:border-info/40 hover:bg-info/15',
+    icon: 'text-info bg-info/20',
+  },
+  destructive: {
+    wrapper: 'bg-destructive/10 border-destructive/20 hover:border-destructive/40 hover:bg-destructive/15',
+    icon: 'text-destructive bg-destructive/20',
+  },
 };
 
 export function StatCard({
@@ -47,51 +62,37 @@ export function StatCard({
             ? value.toLocaleString()
             : formatNumber(value);
 
+  const styles = accentMap[accent];
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay }}
+      className="h-full"
     >
-      <Card className="relative overflow-hidden">
-        <CardContent className="p-4 sm:p-5">
-          <div className="flex items-start justify-between">
-            <div className="min-w-0 space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">
-                {title}
-              </p>
-              <p className="truncate text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-                {formattedValue}
-              </p>
-              {change !== undefined && (
-                <div className="flex items-center gap-1 text-xs" dir={language === 'ku' ? 'rtl' : 'ltr'}>
-                  {change >= 0 ? (
-                    <ArrowUpRight className="h-3.5 w-3.5 text-success" />
-                  ) : (
-                    <ArrowDownRight className="h-3.5 w-3.5 text-destructive" />
-                  )}
-                  <span
-                    className={cn(
-                      'font-medium',
-                      change >= 0 ? 'text-success' : 'text-destructive'
-                    )}
-                  >
-                    {change >= 0 ? '+' : ''}
-                    {change.toFixed(1)}%
-                  </span>
-                  <span className="hidden text-muted-foreground sm:inline">
-                    {language === 'ku' ? 'بەراورد بە ماوەی پێشوو' : 'vs last period'}
-                  </span>
-                </div>
-              )}
-            </div>
+      <Card className={cn(
+        "relative h-full overflow-hidden transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-lg border-2",
+        styles.wrapper
+      )}>
+        <div className="absolute top-0 right-0 -mr-4 -mt-4 w-24 h-24 rounded-full bg-background/20 blur-2xl" />
+        <CardContent className="p-4 sm:p-5 h-full flex flex-col justify-center">
+          <div className="flex items-center gap-4">
             <div
               className={cn(
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:h-11 sm:w-11',
-                accentMap[accent]
+                'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-sm transition-transform duration-300 hover:scale-110',
+                styles.icon
               )}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-6 w-6 drop-shadow-sm" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-muted-foreground/80 truncate">
+                {title}
+              </p>
+              <p className="truncate text-2xl font-black tracking-tight text-foreground sm:text-3xl drop-shadow-sm">
+                {formattedValue}
+              </p>
             </div>
           </div>
         </CardContent>

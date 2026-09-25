@@ -41,7 +41,8 @@ export interface DashboardData {
   userGrowth: ChartDataPoint[];
   quizActivity: ChartDataPoint[];
   answerActivity: ChartDataPoint[];
-  revenue: ChartDataPoint[];
+  revenueUsd: ChartDataPoint[];
+  revenueIqd: ChartDataPoint[];
   activeUsers: ChartDataPoint[];
 }
 
@@ -102,7 +103,7 @@ function groupDataByDate(records: any[], dateField: string, days: number = 30): 
   return points;
 }
 
-function groupRevenueByDate(revenues: any[], days: number = 30): ChartDataPoint[] {
+function groupRevenueByDate(revenues: any[], currencyFilter: 'USD' | 'IQD', days: number = 30): ChartDataPoint[] {
   const points: ChartDataPoint[] = [];
   const today = new Date();
   
@@ -115,7 +116,7 @@ function groupRevenueByDate(revenues: any[], days: number = 30): ChartDataPoint[
   }
 
   revenues.forEach(r => {
-    if (r.date && (r.currency || 'USD') === 'USD') {
+    if (r.date && (r.currency || 'USD') === currencyFilter) {
       const dateStr = new Date(r.date).toISOString().slice(0, 10);
       if (map.has(dateStr)) {
         map.set(dateStr, map.get(dateStr)! + Number(r.amount || 0));
@@ -222,7 +223,8 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   const userGrowth = groupDataByDate(users, 'joinedAt', 30);
   const quizActivity = groupQuizActivityByDate(quizzes, 30);
-  const revenueTrend = groupRevenueByDate(revenues, 30);
+  const revenueTrendUsd = groupRevenueByDate(revenues, 'USD', 30);
+  const revenueTrendIqd = groupRevenueByDate(revenues, 'IQD', 30);
   
   // Simulated trends for unavailable data types, grounded in actual resource sizes
   const answerActivity = generateSeries(30, questions.length * 5, 5, 0.1);
@@ -343,7 +345,8 @@ export async function getDashboardData(): Promise<DashboardData> {
     userGrowth,
     quizActivity,
     answerActivity,
-    revenue: revenueTrend,
+    revenueUsd: revenueTrendUsd,
+    revenueIqd: revenueTrendIqd,
     activeUsers,
   };
 }

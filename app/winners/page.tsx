@@ -2,11 +2,11 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Trophy, Crown, Award, Search, Sparkles, Gift, Coins, Receipt, Loader2, Check, ArrowRight } from 'lucide-react';
+import { Trophy, Crown, Award, Search, Sparkles, Gift, Receipt, Loader2, Check, UserCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { PageHeader } from '@/components/shared/page-header';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +60,7 @@ function getPrizeText(obj: any, language: string): string {
 export default function WinnersPage() {
   const { language } = useLanguage();
   const [search, setSearch] = useState('');
+  const [receiptSearch, setReceiptSearch] = useState('');
   const queryClient = useQueryClient();
 
   const [isPayoutDialogOpen, setIsPayoutDialogOpen] = useState(false);
@@ -71,7 +72,7 @@ export default function WinnersPage() {
   // Fetch all users to find winners
   const { data: usersResult, isLoading: isUsersLoading } = useQuery<{ data: any[] }>({
     queryKey: ['users-winners'],
-    queryFn: () => api.get<{ data: any[] }>('/users?onlyParticipants=true'),
+    queryFn: () => api.get<{ data: any[] }>('/users'),
   });
 
   // Fetch last quiz winners
@@ -197,10 +198,17 @@ export default function WinnersPage() {
       const paid = userPaidAmounts.get(u.id) || 0;
       const total = u.totalRewards || 0;
       const pending = Math.max(0, total - paid);
+      const fullName = u.fullName?.trim() || '';
+      const username = u.username?.trim() || '';
+      let displayName = fullName;
+      if (!displayName) displayName = username;
+      if (!displayName) displayName = language === 'ku' ? 'نەناسراو' : 'Unknown';
+
       return {
         id: u.id,
         rank: index + 1,
-        name: u.fullName || u.username || 'Unknown',
+        displayName: displayName,
+        username: username ? `@${username}` : '',
         avatarUrl: resolveAvatarUrl(u.avatarUrl || u.avatarKey),
         totalPoints: u.totalPoints || 0,
         totalRewards: total,
@@ -211,15 +219,16 @@ export default function WinnersPage() {
         raw: u,
       };
     });
-  }, [usersResult, userPaidAmounts]);
+  }, [usersResult, userPaidAmounts, language]);
 
   const filteredWinners = useMemo(() => {
     return winnersList.filter((w) =>
-      w.name.toLowerCase().includes(search.toLowerCase())
+      w.displayName.toLowerCase().includes(search.toLowerCase()) ||
+      w.username.toLowerCase().includes(search.toLowerCase())
     );
   }, [winnersList, search]);
 
-  const top3 = filteredWinners.slice(0, 3);
+  const top3 = winnersList.slice(0, 3);
 
   const recentQuizWinners = useMemo(() => {
     const list = Array.isArray(lastWinnersResult?.winners)
@@ -228,13 +237,32 @@ export default function WinnersPage() {
         ? lastWinnersResult.data.winners
         : [];
 
-    return list.map((w: any) => ({
-      ...w,
-      avatarUrl: resolveAvatarUrl(w.avatarUrl || w.avatarKey || w.avatar),
-    }));
-  }, [lastWinnersResult]);
+    return list.map((w: any) => {
+      const fullName = w.fullName?.trim() || '';
+      const username = w.username?.trim() || '';
+      let displayName = fullName;
+      if (!displayName) displayName = username;
+      if (!displayName) displayName = language === 'ku' ? 'نەناسراو' : 'Unknown';
+
+      return {
+        ...w,
+        displayName: displayName,
+        username: username ? `@${username}` : '',
+        avatarUrl: resolveAvatarUrl(w.avatarUrl || w.avatarKey || w.avatar),
+      };
+    });
+  }, [lastWinnersResult, language]);
 
   const isLoading = isUsersLoading;
+
+  const filteredReceipts = useMemo(() => {
+    if (!receiptsResult) return [];
+    return receiptsResult.filter((r: any) => {
+      const name = (r.userName || r.username || r.user?.fullName || r.user?.username || '').toLowerCase();
+      const s = receiptSearch.toLowerCase();
+      return name.includes(s) || (r.quizTitle || '').toLowerCase().includes(s);
+    });
+  }, [receiptsResult, receiptSearch]);
 
   if (isLoading) {
     return (
@@ -257,132 +285,21 @@ export default function WinnersPage() {
             : 'All-time champions and quiz winners'
         }
         breadcrumbs={[
-          { label: language === 'ku' ? 'سەرەتا' : 'Home', href: '/dashboard' },
+          { label: language === 'ku' ? 'سەرەکی' : 'Home', href: '/dashboard' },
           { label: language === 'ku' ? 'براوەکان' : 'Winners' },
         ]}
       />
 
-      {/* Top 3 Champions Podium */}
-      {top3.length > 0 && (
-        <div className="mb-10">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-xl font-extrabold flex items-center gap-2.5 text-foreground">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-warning/15 text-warning border border-warning/30 shadow-inner">
-                <Trophy className="h-5 w-5" />
-              </span>
-              {language === 'ku' ? 'پاڵەوانە یەکەمەکان' : 'Top Champions'}
-            </h2>
-            <Badge variant="outline" className="gap-1.5 py-1 px-3 border-amber-500/30 bg-amber-500/10 text-amber-400 font-semibold">
-              <Sparkles className="h-3.5 w-3.5" />
-              {language === 'ku' ? 'باشترین یاریزانەکان' : 'Hall of Fame'}
-            </Badge>
-          </div>
-
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 items-end">
-            {[1, 0, 2].map((displayIndex) => {
-              const entry = top3[displayIndex];
-              if (!entry) return null;
-
-              const isFirst = displayIndex === 0;
-              const isSecond = displayIndex === 1;
-              const isThird = displayIndex === 2;
-
-              const prizeText = getPrizeText(entry, language);
-
-              const cardBorders = isFirst
-                ? 'border-amber-400/70 bg-gradient-to-b from-amber-500/20 via-yellow-500/10 to-amber-950/40 shadow-[0_0_30px_rgba(245,158,11,0.2)]'
-                : isSecond
-                  ? 'border-slate-300/50 bg-gradient-to-b from-slate-400/20 via-slate-500/10 to-slate-950/40 shadow-[0_0_20px_rgba(148,163,184,0.15)]'
-                  : 'border-amber-700/50 bg-gradient-to-b from-amber-700/20 via-amber-800/10 to-stone-950/40 shadow-[0_0_20px_rgba(180,83,9,0.15)]';
-
-              const badgeColors = isFirst
-                ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-amber-500/30'
-                : isSecond
-                  ? 'bg-gradient-to-r from-slate-300 to-slate-400 text-slate-950 shadow-slate-300/30'
-                  : 'bg-gradient-to-r from-amber-700 to-amber-800 text-white shadow-amber-700/30';
-
-              const ringColors = isFirst
-                ? 'ring-4 ring-amber-400/80 shadow-[0_0_20px_rgba(251,191,36,0.4)]'
-                : isSecond
-                  ? 'ring-4 ring-slate-300/70 shadow-[0_0_15px_rgba(203,213,225,0.25)]'
-                  : 'ring-4 ring-amber-700/70 shadow-[0_0_15px_rgba(180,83,9,0.25)]';
-
-              const rankTitles = [
-                language === 'ku' ? 'پلەی یەکەم 🥇' : '1st Place 🥇',
-                language === 'ku' ? 'پلەی دووەم 🥈' : '2nd Place 🥈',
-                language === 'ku' ? 'پلەی سێیەم 🥉' : '3rd Place 🥉',
-              ];
-
-              const orderClasses = ['order-1 sm:order-2', 'order-2 sm:order-1', 'order-3 sm:order-3'];
-
-              return (
-                <motion.div
-                  key={entry.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: displayIndex * 0.12 }}
-                  className={orderClasses[displayIndex]}
-                >
-                  <Card className={`relative overflow-hidden text-center border-2 backdrop-blur-xl ${cardBorders} ${isFirst ? 'sm:-translate-y-4 py-2' : ''}`}>
-                    <CardContent className="flex flex-col items-center pt-6 pb-6 px-4">
-                      <Badge className={`mb-3 ${badgeColors} border-0 font-extrabold px-3 py-1 text-xs shadow-md tracking-wide`}>
-                        {rankTitles[displayIndex]}
-                      </Badge>
-
-                      <div className="mb-3 flex h-24 w-24 items-center justify-center relative">
-                        <Avatar className={`h-24 w-24 border-4 border-background ${ringColors}`}>
-                          <AvatarImage src={entry.avatarUrl || undefined} alt={entry.name} />
-                          <AvatarFallback className="text-2xl font-black bg-primary/20 text-primary">
-                            {getInitials(entry.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        {isFirst && (
-                          <div className="absolute -top-4 -right-1 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full p-1.5 shadow-lg border border-yellow-200">
-                            <Crown className="h-6 w-6 text-slate-950 fill-yellow-300" />
-                          </div>
-                        )}
-                      </div>
-
-                      <p className="text-lg font-extrabold text-foreground truncate max-w-full px-2">{entry.name}</p>
-
-                      {/* Prize Display Badge */}
-                      <div className="mt-3 flex items-center gap-1.5 rounded-full bg-warning/15 px-3.5 py-1.5 text-warning border border-warning/30 font-extrabold text-xs shadow-sm">
-                        <Gift className="h-4 w-4" />
-                        <span>{language === 'ku' ? 'خەڵات:' : 'Prize:'} {prizeText}</span>
-                      </div>
-
-                      <div className="mt-4 flex items-center justify-center gap-2 w-full">
-                        <Badge variant="secondary" className="gap-1 font-bold py-1 px-2.5">
-                          <Trophy className="h-3.5 w-3.5 text-warning" />
-                          {entry.quizzesWon.toLocaleString('en-US')} {language === 'ku' ? 'کویز' : 'won'}
-                        </Badge>
-                        <Badge variant="outline" className="gap-1 font-bold py-1 px-2.5 border-primary/30">
-                          <Sparkles className="h-3.5 w-3.5 text-primary" />
-                          {entry.totalPoints.toLocaleString('en-US')} {language === 'ku' ? 'خاڵ' : 'pts'}
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Recent Quiz Winners Banner */}
       {recentQuizWinners.length > 0 && (
-        <Card className="mb-8 border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Award className="h-5 w-5 text-primary" />
+        <Card className="mb-10 border-none bg-primary/5 shadow-sm max-w-4xl mx-auto">
+          <div className="p-4 border-b border-primary/10 flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h3 className="font-bold text-sm sm:text-base">
               {language === 'ku' ? 'براوەکانی دواین کویز' : 'Recent Quiz Winners'}
-            </CardTitle>
-            <CardDescription>
-              {language === 'ku' ? 'پاڵەوانەکانی دوایین یاری بەکۆمەڵ' : 'Champions from the latest live quiz'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+            </h3>
+          </div>
+          <CardContent className="p-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
               {recentQuizWinners.map((w: any, idx: number) => {
                 const rankNum = w.rank || idx + 1;
@@ -391,20 +308,20 @@ export default function WinnersPage() {
                 return (
                   <div
                     key={w.id || idx}
-                    className="flex items-center gap-3 rounded-lg border border-border bg-background p-3 shadow-sm"
+                    className="flex items-center gap-3 rounded-xl border border-border/50 bg-background p-3 shadow-sm transition-transform hover:scale-[1.02]"
                   >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm">
                       #{rankNum}
                     </div>
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={w.avatarUrl || undefined} alt={w.name} />
-                      <AvatarFallback>{getInitials(w.name || 'W')}</AvatarFallback>
+                    <Avatar className="h-10 w-10 border border-primary/10">
+                      <AvatarImage src={w.avatarUrl} className="object-cover" />
+                      <AvatarFallback className="bg-primary/5 text-xs text-primary font-bold">{getInitials(w.displayName)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 overflow-hidden">
-                      <p className="truncate text-sm font-semibold">{w.name || 'Winner'}</p>
-                      <div className="flex items-center gap-1 text-xs text-warning font-medium">
+                      <p className="truncate text-sm font-bold">{w.displayName}</p>
+                      <div className="flex items-center gap-1 text-[11px] text-warning font-bold mt-0.5">
                         <Gift className="h-3 w-3" />
-                        <span>{pText}</span>
+                        <span className="truncate">{pText}</span>
                       </div>
                     </div>
                   </div>
@@ -415,15 +332,14 @@ export default function WinnersPage() {
         </Card>
       )}
 
-      {/* Tabs Switcher for Winners vs Receipts */}
-      <Tabs defaultValue="winners" className="space-y-6" dir={language === 'ku' ? 'rtl' : 'ltr'}>
-        <div className="flex items-center justify-between border-b pb-4">
-          <TabsList className="bg-muted/50 p-1 border">
-            <TabsTrigger value="winners" className="font-semibold text-sm">
+      <Tabs defaultValue="winners" className="max-w-4xl mx-auto space-y-6" dir={language === 'ku' ? 'rtl' : 'ltr'}>
+        <div className="flex items-center border-b pb-4">
+          <TabsList className="bg-muted/50 p-1 border rounded-full">
+            <TabsTrigger value="winners" className="font-bold text-sm rounded-full px-6">
               <Trophy className="me-2 h-4 w-4" />
               {language === 'ku' ? 'لیستی براوەکان' : 'Winners List'}
             </TabsTrigger>
-            <TabsTrigger value="receipts" className="font-semibold text-sm">
+            <TabsTrigger value="receipts" className="font-bold text-sm rounded-full px-6">
               <Receipt className="me-2 h-4 w-4" />
               {language === 'ku' ? 'وەسڵەکان' : 'Receipts'}
             </TabsTrigger>
@@ -431,203 +347,200 @@ export default function WinnersPage() {
         </div>
 
         <TabsContent value="winners" className="space-y-6 outline-none">
-          {/* All Winners Table */}
-          <Card>
-            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle className="text-base">
-                  {language === 'ku' ? 'لیستی تەواوی براوەکان' : 'All Winners List'}
-                </CardTitle>
-                <CardDescription>
-                  {language === 'ku' ? 'بەکارهێنەران بەپێی سەرکەوتنەکان، خەڵاتەکان و خاڵەکان' : 'Players ranked by quiz wins, prizes, and score'}
-                </CardDescription>
+          <Card className="border-none shadow-lg overflow-hidden bg-background">
+            <div className="bg-muted/40 p-5 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Award className="h-6 w-6 text-primary" />
+                <h3 className="font-bold text-xl">
+                  {language === 'ku' ? 'تەواوی براوەکان' : 'All Winners'}
+                </h3>
               </div>
-              <div className="relative w-full sm:w-64">
-                <Search className={cn("absolute top-2.5 h-4 w-4 text-muted-foreground", language === 'ku' ? "right-2.5" : "left-2.5")} />
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder={language === 'ku' ? 'گەڕان بەدوای براوەدا...' : 'Search winners...'}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className={cn(language === 'ku' ? "pr-8" : "pl-8")}
+                  className="pl-9 h-10 rounded-full bg-background border-primary/20 shadow-sm focus-visible:ring-primary/30"
                 />
               </div>
-            </CardHeader>
-            <CardContent className="space-y-2">
+            </div>
+            <CardContent className="p-0">
               {filteredWinners.length === 0 ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">
-                  {language === 'ku' ? 'هیچ براوەیەک نەدۆزرایەوە' : 'No winners found.'}
+                <div className="py-16 flex flex-col items-center justify-center text-muted-foreground">
+                  <UserCircle className="h-12 w-12 opacity-50 mb-4" />
+                  <p className="text-lg font-medium">{language === 'ku' ? 'هیچ براوەیەک نەدۆزرایەوە' : 'No winners found.'}</p>
                 </div>
               ) : (
-                filteredWinners.map((winner, index) => {
-                  const prizeText = getPrizeText(winner, language);
-
-                  return (
-                    <motion.div
-                      key={winner.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.02 }}
-                      className="flex items-center gap-4 rounded-lg border border-border/50 bg-card p-3 transition-colors hover:bg-muted/50"
-                    >
-                      <span className="w-8 text-center text-sm font-bold text-muted-foreground">
-                        #{winner.rank}
-                      </span>
-                      <Avatar className="h-10 w-10 border border-border">
-                        <AvatarImage src={winner.avatarUrl || undefined} alt={winner.name} />
-                        <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
-                          {getInitials(winner.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold">{winner.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {winner.quizzesPlayed > 0
-                            ? `${winner.quizzesPlayed.toLocaleString('en-US')} ${language === 'ku' ? 'یاری ئەنجامدراو' : 'played'}`
-                            : language === 'ku'
-                              ? 'یاریزان'
-                              : 'Player'}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-4 text-sm">
-                        {/* Prize Column */}
-                        <div className="text-end sm:text-center min-w-24">
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-warning bg-warning/10 px-2.5 py-1 rounded-full border border-warning/20">
-                            <Gift className="h-3.5 w-3.5" />
-                            {prizeText}
-                          </span>
+                <div className="divide-y">
+                  {filteredWinners.map((winner, index) => {
+                    return (
+                      <motion.div
+                        key={winner.id}
+                        initial={{ opacity: 0, x: -15 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 p-4 sm:p-5 hover:bg-muted/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 sm:gap-6 flex-1 min-w-0">
+                          <div className="flex items-center justify-center w-8 font-black text-xl text-muted-foreground/60">
+                            {winner.rank}
+                          </div>
+                          <Avatar className="h-12 w-12 sm:h-14 sm:w-14 border border-border shadow-sm">
+                            <AvatarImage src={winner.avatarUrl} className="object-cover" />
+                            <AvatarFallback className="bg-primary/5 text-sm font-bold text-primary">
+                              {getInitials(winner.displayName)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-base sm:text-lg truncate">
+                              {winner.displayName}
+                            </p>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-0.5 text-xs sm:text-sm text-muted-foreground">
+                              {winner.username && <span className="truncate">{winner.username}</span>}
+                              {winner.username && <span className="hidden sm:inline opacity-50">•</span>}
+                              <span className="whitespace-nowrap flex items-center gap-1">
+                                <Trophy className="h-3 w-3 text-warning" />
+                                <span className="font-bold text-foreground/80">{winner.quizzesWon}</span>{' '}
+                                {language === 'ku' ? 'بردنەوە' : 'Wins'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
 
-                        {/* Paid vs Pending Status */}
-                        <div className="flex flex-col items-end min-w-[120px]">
-                          <span className="text-[11px] text-muted-foreground">
-                            {language === 'ku' ? 'دراوە:' : 'Paid:'} <span className="font-bold text-foreground">{winner.paidRewards.toLocaleString()} {language === 'ku' ? 'د.ع' : 'IQD'}</span>
-                          </span>
-                          <span className="text-[11px] text-muted-foreground mt-0.5">
-                            {language === 'ku' ? 'ماوە:' : 'Pending:'} <span className={cn("font-bold", winner.pendingRewards > 0 ? "text-amber-500" : "text-emerald-500")}>{winner.pendingRewards.toLocaleString()} {language === 'ku' ? 'د.ع' : 'IQD'}</span>
-                          </span>
-                        </div>
+                        <div className="flex items-center justify-between sm:justify-end gap-6 sm:w-auto w-full pl-11 sm:pl-0">
+                          <div className="flex flex-col items-start sm:items-end gap-1">
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-muted-foreground">{language === 'ku' ? 'دراوە:' : 'Paid:'}</span>
+                              <span className="font-bold text-emerald-500">{formatNumber(winner.paidRewards)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-muted-foreground">{language === 'ku' ? 'ماوە:' : 'Pending:'}</span>
+                              <span className={cn("font-bold", winner.pendingRewards > 0 ? "text-amber-500" : "text-muted-foreground")}>
+                                {formatNumber(winner.pendingRewards)}
+                              </span>
+                            </div>
+                          </div>
 
-                        {/* Action Button */}
-                        <div className="min-w-[100px] flex justify-end">
-                          {winner.pendingRewards > 0 ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 border-warning/30 bg-warning/5 hover:bg-warning hover:text-black text-warning font-semibold gap-1 text-xs"
-                              onClick={() => {
-                                setSelectedWinner(winner);
-                                setPayoutAmount(String(winner.pendingRewards));
-                                setIsPayoutDialogOpen(true);
-                              }}
-                            >
-                              <Gift className="h-3.5 w-3.5" />
-                              {language === 'ku' ? 'پێدانی خەڵات' : 'Pay Prize'}
-                            </Button>
-                          ) : winner.totalRewards > 0 ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">
-                              <Check className="h-3.5 w-3.5" />
-                              {language === 'ku' ? 'دراوە' : 'Paid'}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
+                          <div className="w-[110px] flex justify-end shrink-0">
+                            {winner.pendingRewards > 0 ? (
+                              <Button
+                                size="sm"
+                                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold h-9 shadow-sm"
+                                onClick={() => {
+                                  setSelectedWinner(winner);
+                                  setPayoutAmount(String(winner.pendingRewards));
+                                  setIsPayoutDialogOpen(true);
+                                }}
+                              >
+                                <Gift className="me-2 h-3.5 w-3.5" />
+                                {language === 'ku' ? 'پێدان' : 'Pay'}
+                              </Button>
+                            ) : winner.totalRewards > 0 ? (
+                              <Badge className="w-full justify-center bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20 py-2 text-xs font-bold">
+                                <Check className="me-1 h-3.5 w-3.5" />
+                                {language === 'ku' ? 'دراوە' : 'Paid'}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-sm font-medium">—</span>
+                            )}
+                          </div>
                         </div>
-
-                        <div className="text-end sm:text-center">
-                          <span className="inline-flex items-center gap-1 text-sm font-bold text-primary">
-                            <Trophy className="h-4 w-4 text-warning" />
-                            {winner.quizzesWon.toLocaleString('en-US')}
-                          </span>
-                          <p className="text-[10px] text-muted-foreground">{language === 'ku' ? 'براوەی کویز' : 'wins'}</p>
-                        </div>
-                        <div className="text-end sm:text-center min-w-16 hidden sm:block">
-                          <p className="font-bold text-primary">{winner.totalPoints.toLocaleString('en-US')}</p>
-                          <p className="text-[10px] text-muted-foreground">{language === 'ku' ? 'خاڵ' : 'pts'}</p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )
-                })
+                      </motion.div>
+                    );
+                  })}
+                </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="receipts" className="outline-none">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-primary" />
-                {language === 'ku' ? 'لیستی تەواوی وەسڵەکان' : 'All Receipts List'}
-              </CardTitle>
-              <CardDescription>
-                {language === 'ku' ? 'مێژووی پێدانی خەڵاتەکان بە براوەکان' : 'Payout history of rewards to winners'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <Card className="border-none shadow-lg overflow-hidden bg-background">
+            <div className="bg-muted/40 p-5 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Receipt className="h-6 w-6 text-primary" />
+                <h3 className="font-bold text-xl">
+                  {language === 'ku' ? 'مێژووی وەسڵەکان' : 'Receipts History'}
+                </h3>
+              </div>
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={language === 'ku' ? 'گەڕان بەدوای وەسڵ...' : 'Search receipts...'}
+                  value={receiptSearch}
+                  onChange={(e) => setReceiptSearch(e.target.value)}
+                  className="pl-9 h-10 rounded-full bg-background border-primary/20 shadow-sm focus-visible:ring-primary/30"
+                />
+              </div>
+            </div>
+            <CardContent className="p-0">
               {isReceiptsLoading ? (
-                <div className="flex justify-center py-12">
+                <div className="flex justify-center py-16">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-              ) : !receiptsResult || receiptsResult.length === 0 ? (
-                <div className="py-12 text-center text-sm text-muted-foreground">
-                  {language === 'ku' ? 'هیچ وەسڵێک تۆمار نەکراوە' : 'No receipts recorded.'}
+              ) : !filteredReceipts || filteredReceipts.length === 0 ? (
+                <div className="py-16 text-center flex flex-col items-center text-muted-foreground">
+                  <Receipt className="h-12 w-12 opacity-50 mb-4" />
+                  <p className="text-lg font-medium">{language === 'ku' ? 'هیچ وەسڵێک تۆمار نەکراوە' : 'No receipts recorded.'}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm text-start border-collapse">
                     <thead>
-                      <tr className="border-b bg-muted/40 text-muted-foreground font-medium text-xs uppercase tracking-wider">
-                        <th className="p-3 text-start">{language === 'ku' ? 'ڕێکەوت' : 'Date'}</th>
-                        <th className="p-3 text-start">{language === 'ku' ? 'براوە' : 'Winner'}</th>
-                        <th className="p-3 text-start">{language === 'ku' ? 'کویز' : 'Quiz'}</th>
-                        <th className="p-3 text-start">{language === 'ku' ? 'بڕی پارە' : 'Amount'}</th>
-                        <th className="p-3 text-start">{language === 'ku' ? 'تێبینی' : 'Notes'}</th>
-                        <th className="p-3 text-center">{language === 'ku' ? 'کردارەکان' : 'Actions'}</th>
+                      <tr className="bg-muted/20 text-muted-foreground font-semibold text-xs uppercase tracking-wider">
+                         <th className="p-4 text-start font-medium">{language === 'ku' ? 'ڕێکەوت' : 'Date'}</th>
+                         <th className="p-4 text-start font-medium">{language === 'ku' ? 'براوە' : 'Winner'}</th>
+                         <th className="p-4 text-start font-medium">{language === 'ku' ? 'کویز' : 'Quiz'}</th>
+                         <th className="p-4 text-start font-medium">{language === 'ku' ? 'بڕی پارە' : 'Amount'}</th>
+                         <th className="p-4 text-center font-medium w-[100px]">{language === 'ku' ? 'کردارەکان' : 'Actions'}</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {receiptsResult.map((r: any) => (
-                        <tr key={r.id} className="border-b hover:bg-muted/50 transition-colors">
-                          <td className="p-3 font-medium text-muted-foreground whitespace-nowrap">
+                    <tbody className="divide-y divide-border/50">
+                      {filteredReceipts.map((r: any) => {
+                        const userMatch = Array.isArray(usersResult?.data) ? usersResult.data.find(u => u.id === r.userId) : null;
+                        const avatarVal = userMatch?.avatarUrl || userMatch?.avatarKey || r.avatarUrl || r.avatarKey || r.user?.avatarUrl || r.user?.avatarKey;
+                        const finalName = userMatch?.fullName || userMatch?.username || r.userName || r.user?.fullName || r.username || r.user?.username || 'Unknown';
+                        const finalUsername = userMatch?.username || r.username || r.user?.username;
+
+                        return (
+                        <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="p-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">
                             {formatDate(r.createdAt)}
                           </td>
-                          <td className="p-3">
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-7 w-7">
-                                <AvatarImage src={resolveAvatarUrl(r.avatarUrl || r.avatarKey)} />
-                                <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                                  {getInitials(r.userName || r.username || 'W')}
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10 border border-border shadow-sm">
+                                <AvatarImage src={resolveAvatarUrl(avatarVal)} className="object-cover" />
+                                <AvatarFallback className="text-xs bg-primary/5 text-primary font-bold">
+                                  {getInitials(finalName)}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex flex-col">
-                                <span className="font-semibold text-xs">{r.userName || r.username || 'Unknown'}</span>
-                                <span className="text-[10px] text-muted-foreground">@{r.username}</span>
+                                <span className="font-bold text-base">{finalName}</span>
+                                {finalUsername && <span className="text-xs text-muted-foreground">@{finalUsername}</span>}
                               </div>
                             </div>
                           </td>
-                          <td className="p-3">
+                          <td className="p-4">
                             {r.quizTitle ? (
-                              <Badge variant="outline" className="font-semibold text-xs border-primary/20 text-primary bg-primary/5">
+                              <span className="font-medium text-xs text-foreground bg-muted px-2 py-1 rounded-md">
                                 {r.quizTitle}
-                              </Badge>
+                              </span>
                             ) : (
-                              <Badge variant="secondary" className="text-xs text-muted-foreground">
+                              <span className="text-xs text-muted-foreground italic">
                                 {language === 'ku' ? 'گشتی / تر' : 'General / Other'}
-                              </Badge>
+                              </span>
                             )}
                           </td>
-                          <td className="p-3 font-extrabold text-emerald-600">
-                            {Number(r.amount).toLocaleString()} IQD
+                          <td className="p-4 font-black text-emerald-500">
+                            {formatNumber(r.amount)} {language === 'ku' ? 'د.ع' : 'IQD'}
                           </td>
-                          <td className="p-3 text-xs text-muted-foreground max-w-xs truncate" title={r.notes || ''}>
-                            {r.notes || '—'}
-                          </td>
-                          <td className="p-3 text-center">
+                          <td className="p-4 text-center">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 text-destructive hover:text-destructive hover:bg-destructive/10 text-xs px-2"
+                              className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10 text-xs px-3 font-semibold w-full"
                               onClick={() => {
                                 if (confirm(language === 'ku' ? 'دڵنیایت لە هەڵوەشاندنەوەی ئەم وەسڵە؟ (ئەم کردارە بڕی ماوەی یاریزانەکە زیاد دەکاتەوە)' : 'Are you sure you want to reverse this receipt? (This will restore the winner\'s pending balance)')) {
                                   deleteReceiptMutation.mutate(r.id);
@@ -638,7 +551,8 @@ export default function WinnersPage() {
                             </Button>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -650,38 +564,58 @@ export default function WinnersPage() {
 
       {/* Payout Dialog */}
       <Dialog open={isPayoutDialogOpen} onOpenChange={setIsPayoutDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Gift className="h-5 w-5 text-warning animate-bounce" />
-              {language === 'ku' ? 'تۆمارکردنی پێدانی خەڵات' : 'Process Prize Payout'}
+        <DialogContent className="sm:max-w-[425px] overflow-hidden rounded-2xl">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 to-amber-600" />
+          <DialogHeader className="pt-2">
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <div className="p-2 bg-amber-500/10 rounded-full">
+                <Gift className="h-5 w-5 text-amber-500" />
+              </div>
+              {language === 'ku' ? 'پێدانی خەڵات' : 'Pay Prize'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="pt-2 text-sm font-medium">
               {language === 'ku'
-                ? `پێدانی خەڵاتی دارایی بە یاریزان "${selectedWinner?.name}"`
-                : `Record a cash payout for player "${selectedWinner?.name}"`}
+                ? `پێدانی خەڵات بە یاریزان "${selectedWinner?.displayName}"`
+                : `Payout for player "${selectedWinner?.displayName}"`}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          
+          <div className="grid gap-5 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="amount" className="font-semibold">
+              <Label htmlFor="amount" className="font-bold text-foreground">
                 {language === 'ku' ? 'بڕی خەڵات (د.ع)' : 'Payout Amount (IQD)'}
               </Label>
-              <Input
-                id="amount"
-                type="number"
-                value={payoutAmount}
-                onChange={(e) => setPayoutAmount(e.target.value)}
-                placeholder="100,000"
-                className="h-10 text-lg font-bold"
-              />
-              <span className="text-xs text-muted-foreground">
-                {language === 'ku' ? `زۆرترین بڕی ماوە: ${selectedWinner?.pendingRewards?.toLocaleString()} د.ع` : `Max pending amount: ${selectedWinner?.pendingRewards?.toLocaleString()} IQD`}
-              </span>
+              <div className="relative">
+                <Input
+                  id="amount"
+                  type="text"
+                  inputMode="numeric"
+                  value={payoutAmount}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    if (!raw) {
+                      setPayoutAmount('');
+                      return;
+                    }
+                    setPayoutAmount(Number(raw).toLocaleString('en-US'));
+                  }}
+                  placeholder="100,000"
+                  className="h-12 text-lg font-black pl-4 pr-12 rounded-xl bg-muted/50 border-transparent focus-visible:bg-background focus-visible:ring-amber-500/30 focus-visible:border-amber-500/50"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground text-sm">IQD</span>
+              </div>
+              <div className="flex justify-between items-center px-1">
+                <span className="text-[11px] font-medium text-muted-foreground">
+                  {language === 'ku' ? `زۆرترین بڕ:` : `Max amount:`} 
+                </span>
+                <span className="text-xs font-black text-amber-500">
+                  {formatNumber(selectedWinner?.pendingRewards)} {language === 'ku' ? 'د.ع' : 'IQD'}
+                </span>
+              </div>
             </div>
 
             <div className="grid gap-2">
-              <Label className="font-semibold">{language === 'ku' ? 'کویزی پەیوەندیدار' : 'Related Quiz'}</Label>
+              <Label className="font-bold text-foreground">{language === 'ku' ? 'کویزی پەیوەندیدار' : 'Related Quiz'}</Label>
               <Select onValueChange={(val) => {
                 setPayoutQuizId(val);
                 if (val !== 'general') {
@@ -694,17 +628,17 @@ export default function WinnersPage() {
                   setPayoutAmount(String(selectedWinner?.pendingRewards));
                 }
               }} value={payoutQuizId}>
-                <SelectTrigger className="h-10">
+                <SelectTrigger className="h-12 rounded-xl bg-muted/50 border-transparent">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="general">{language === 'ku' ? 'پێدانی گشتی / تر' : 'General / Other Payout'}</SelectItem>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="general" className="font-medium">{language === 'ku' ? 'پێدانی گشتی / تر' : 'General / Other Payout'}</SelectItem>
                   {unpaidWonQuizzes.map((q: any) => {
                     const paid = paidAmountsByQuiz.get(q.quizId) || 0;
                     const remaining = Math.max(0, q.amount - paid);
                     return (
-                      <SelectItem key={q.quizId} value={q.quizId}>
-                        {q.quizTitle} ({language === 'ku' ? `پلەی ${q.rank}` : `Rank ${q.rank}`} - {language === 'ku' ? 'ماوە:' : 'Rem:'} {remaining.toLocaleString()} {language === 'ku' ? 'د.ع' : 'IQD'})
+                      <SelectItem key={q.quizId} value={q.quizId} className="font-medium">
+                        {q.quizTitle} ({language === 'ku' ? `پلەی ${q.rank}` : `Rank ${q.rank}`} - {language === 'ku' ? 'ماوە:' : 'Rem:'} {formatNumber(remaining)} {language === 'ku' ? 'د.ع' : 'IQD'})
                       </SelectItem>
                     );
                   })}
@@ -713,26 +647,27 @@ export default function WinnersPage() {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="notes" className="font-semibold">{language === 'ku' ? 'تێبینییەکان' : 'Notes / References'}</Label>
+              <Label htmlFor="notes" className="font-bold text-foreground">{language === 'ku' ? 'تێبینییەکان (ئارەزوومەندانە)' : 'Notes (Optional)'}</Label>
               <Textarea
                 id="notes"
                 value={payoutNotes}
                 onChange={(e) => setPayoutNotes(e.target.value)}
-                placeholder={language === 'ku' ? 'ژمارەی ترانزاکشن، ژمارەی مۆبایل، یان هەر تێبینییەکی تر...' : 'Transaction ID, phone number, payment details...'}
-                rows={3}
-                className="resize-none"
+                placeholder={language === 'ku' ? 'ژمارەی ترانزاکشن، ژمارەی مۆبایل...' : 'Transaction ID, phone...'}
+                rows={2}
+                className="resize-none rounded-xl bg-muted/50 border-transparent focus-visible:bg-background"
               />
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsPayoutDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t">
+            <Button variant="ghost" onClick={() => setIsPayoutDialogOpen(false)} className="rounded-xl font-bold">
               {language === 'ku' ? 'پاشگەزبوونەوە' : 'Cancel'}
             </Button>
             <Button
-              className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
-              disabled={createReceiptMutation.isPending || !payoutAmount || Number(payoutAmount) <= 0 || !payoutQuizId}
+              className="bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-md px-6"
+              disabled={createReceiptMutation.isPending || !payoutAmount || Number(payoutAmount.replace(/,/g, '')) <= 0 || !payoutQuizId}
               onClick={() => {
-                if (Number(payoutAmount) > selectedWinner?.pendingRewards) {
+                const numericAmount = Number(payoutAmount.replace(/,/g, ''));
+                if (numericAmount > selectedWinner?.pendingRewards) {
                   toast.error(
                     language === 'ku'
                       ? 'بڕی پارەکە ناتوانێت لە بڕی ماوەی یاریزانەکە زیاتر بێت!'
@@ -743,18 +678,15 @@ export default function WinnersPage() {
                 createReceiptMutation.mutate({
                   userId: selectedWinner.id,
                   quizId: payoutQuizId === 'general' ? null : payoutQuizId,
-                  amount: Number(payoutAmount),
+                  amount: numericAmount,
                   notes: payoutNotes,
                 });
               }}
             >
               {createReceiptMutation.isPending ? (
-                <>
-                  <Loader2 className="me-2 h-4 w-4 animate-spin" />
-                  {language === 'ku' ? 'تۆماردەکرێت...' : 'Saving...'}
-                </>
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                language === 'ku' ? 'تۆمارکردنی پێدان' : 'Confirm Payout'
+                language === 'ku' ? 'تۆمارکردن' : 'Confirm'
               )}
             </Button>
           </DialogFooter>

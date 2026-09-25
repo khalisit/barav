@@ -121,36 +121,7 @@ export default function UsersPage() {
         header: language === 'ku' ? 'دۆخ' : 'Status',
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
-      {
-        accessorKey: 'quizzesPlayed',
-        header: language === 'ku' ? 'یاریکردوو' : 'Played',
-        cell: ({ row }) => (
-          <span className="text-sm">{row.original.quizzesPlayed}</span>
-        ),
-      },
-      {
-        accessorKey: 'quizzesWon',
-        header: language === 'ku' ? 'براوە' : 'Won',
-        cell: ({ row }) => (
-          <span className="text-sm font-medium text-success">
-            {row.original.quizzesWon}
-          </span>
-        ),
-      },
-      {
-        accessorKey: 'totalPoints',
-        header: language === 'ku' ? 'خاڵەکان' : 'Points',
-        cell: ({ row }) => (
-          <span className="text-sm font-medium">{row.original.totalPoints?.toLocaleString() || 0}</span>
-        ),
-      },
-      {
-        accessorKey: 'skip',
-        header: language === 'ku' ? 'هەلەکان (سکیپ)' : 'Skips',
-        cell: ({ row }) => (
-          <span className="text-sm text-primary font-medium">{row.original.skip || 0}</span>
-        ),
-      },
+
       {
         accessorKey: 'joinedAt',
         header: language === 'ku' ? 'بەروار' : 'Joined',

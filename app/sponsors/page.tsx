@@ -18,6 +18,7 @@ import Image from 'next/image';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { PageHeader } from '@/components/shared/page-header';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { ImageCropper } from '@/components/shared/image-cropper';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,14 +88,24 @@ export default function SponsorsPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string>('');
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const url = URL.createObjectURL(file);
+    setImageToCrop(url);
+    setCropModalOpen(true);
+    e.target.value = '';
+  };
 
+  const handleCropComplete = async (croppedFile: File) => {
+    setCropModalOpen(false);
     setIsUploadingImage(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', croppedFile);
       formData.append('folder', 'sponsors');
 
       const uploadRes = await client.post('/admin/storage/upload', formData, {
@@ -109,7 +120,7 @@ export default function SponsorsPage() {
           uploadRes.data?.key ||
           '';
         setImageUrl(url);
-        toast.success(language === 'ku' ? 'وێنەکە بارکرا' : 'Image uploaded');
+        toast.success(language === 'ku' ? 'وێنەکە بڕدرا و بارکرا' : 'Image cropped and uploaded');
       } else {
         throw new Error('Upload failed');
       }
@@ -120,7 +131,7 @@ export default function SponsorsPage() {
       toast.error(language === 'ku' ? `هەڵە: ${errorMsg}` : `Upload failed: ${errorMsg}`);
     } finally {
       setIsUploadingImage(false);
-      e.target.value = '';
+      setImageToCrop('');
     }
   };
 
@@ -602,7 +613,7 @@ export default function SponsorsPage() {
                   accept="image/*"
                   className="hidden"
                   ref={imageInputRef}
-                  onChange={handleImageUpload}
+                  onChange={handleImageSelect}
                 />
 
                 {!imageUrl ? (
@@ -669,14 +680,6 @@ export default function SponsorsPage() {
                   </div>
                 )}
                 
-                <div className="p-2.5 rounded-lg bg-amber-500/10 dark:bg-amber-500/5 text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-2 border border-amber-500/20">
-                  <span className="text-xs">⚠️</span>
-                  <span className="font-medium leading-relaxed">
-                    {language === 'ku'
-                      ? 'دڵنیابە لەوەی وێنەکە پێش بارکردن بە شێوەی ئاسۆیی (Landscape 2.05) بڕاوە بۆ ئەوەی بە جوانی نیشان بدرێت.'
-                      : 'Make sure your image is cropped to landscape (2.05) beforehand to guarantee correct layout.'}
-                  </span>
-                </div>
               </div>
             )}
 
@@ -759,14 +762,6 @@ export default function SponsorsPage() {
                   </div>
                 )}
                 
-                <div className="p-2.5 rounded-lg bg-amber-500/10 dark:bg-amber-500/5 text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-2 border border-amber-500/20">
-                  <span className="text-xs">⚠️</span>
-                  <span className="font-medium leading-relaxed">
-                    {language === 'ku'
-                      ? 'دڵنیابە ڤیدیۆکەش بە شێوەی ئاسۆیی (Landscape 2.05) بڕاوە بۆ پاراستنی نیشاندانی دروست.'
-                      : 'Ensure video is pre-cropped to landscape (2.05) to keep correct presentation format.'}
-                  </span>
-                </div>
               </div>
             )}
           </div>
@@ -841,7 +836,7 @@ export default function SponsorsPage() {
                 accept="image/*"
                 className="hidden"
                 ref={imageInputRef}
-                onChange={handleImageUpload}
+                onChange={handleImageSelect}
               />
 
               {!imageUrl ? (
@@ -908,14 +903,6 @@ export default function SponsorsPage() {
                 </div>
               )}
               
-              <div className="p-2.5 rounded-lg bg-amber-500/10 dark:bg-amber-500/5 text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-2 border border-amber-500/20">
-                <span className="text-xs">⚠️</span>
-                <span className="font-medium leading-relaxed">
-                  {language === 'ku'
-                    ? 'دڵنیابە لەوەی وێنەکە پێش بارکردن بە شێوەی ئاسۆیی (Landscape 2.55) بڕاوە بۆ ئەوەی بە جوانی نیشان بدرێت.'
-                    : 'Make sure your image is cropped to landscape (2.55) beforehand to guarantee correct layout.'}
-                </span>
-              </div>
             </div>
 
             {/* Video Disabled Indicator */}
@@ -975,6 +962,16 @@ export default function SponsorsPage() {
           }
         }}
       />
+      
+      {imageToCrop && (
+        <ImageCropper
+          open={cropModalOpen}
+          onOpenChange={setCropModalOpen}
+          imageSrc={imageToCrop}
+          onCropComplete={handleCropComplete}
+          aspect={targetType === 'quiz' ? 2.55 : 2.05}
+        />
+      )}
     </DashboardShell>
   );
 }
